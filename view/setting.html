@@ -1,0 +1,118 @@
+<div class="setting-user-card">
+  <div class="setting-user-row">
+    <span class="setting-user-name">{{userName}}</span>
+    <span class="setting-user-demographics">
+      (<select id="user-age" class="setting-inline-select">
+        <option value="미상">연령대</option>
+        <option value="10대">10대</option>
+        <option value="20대">20대</option>
+        <option value="30대">30대</option>
+        <option value="40대">40대</option>
+        <option value="50대">50대</option>
+        <option value="60대">60대</option>
+        <option value="70대">70대</option>
+      </select>,
+      <select id="user-gender" class="setting-inline-select narrow">
+        <option value="미상">성별</option>
+        <option value="남">남</option>
+        <option value="여">여</option>
+      </select>)
+    </span>
+    <span class="setting-user-email">{{userEmail}}</span>
+  </div>
+</div>
+
+<div class="setting-row-block">
+  <label class="setting-label" for="time-slider">목표 학습 시간</label>
+  <div class="setting-slider-wrap">
+    <input type="range" id="time-slider" min="0" max="5" step="1" value="{{timeIdx}}" oninput="updateTimeFromSlider(this.value)">
+    <span class="setting-slider-val"><span id="time-val-display">{{learningTime}}</span>초</span>
+  </div>
+</div>
+
+<div class="setting-row-inline">
+  <span class="setting-label">학습 도메인</span>
+  <select id="domain-select" class="setting-select">
+    <option value="sanrio">🎀 산리오 캐릭터즈 (40종)</option>
+    <option value="teenieping">💖 캐치! 티니핑 (179종)</option>
+  </select>
+</div>
+
+<div class="setting-row-inline" id="setting-teenieping-season-row">
+  <span class="setting-label">티니핑 출제 시즌 범위</span>
+  <select id="teenieping-season-select" class="setting-select">
+    <option value="all">✨ 전체 시즌 통합 (179종)</option>
+    <option value="1기">1기 · 큐브 티니핑 (44종)</option>
+    <option value="2기">2기 · 보석 티니핑 (20종)</option>
+    <option value="3기">3기 · 열쇠 티니핑 (21종)</option>
+    <option value="4기">4기 · 디저트 티니핑 (21종)</option>
+    <option value="5기">5기 · 스타 티니핑 (25종)</option>
+    <option value="6기">6기 · 프린세스 티니핑 (24종)</option>
+    <option value="7기">7기 · 스테이지 티니핑 (19종)</option>
+    <option value="극장판">🎬 극장판 티니핑 (5종)</option>
+  </select>
+</div>
+
+<div class="setting-row-inline">
+  <span class="setting-label">출제 방식 (그림→이름→교차→질문)</span>
+  <select id="quiz-direction-select" class="setting-select">
+    <option value="img2name">🖼️ 그림 (캐릭터 → 이름 맞추기)</option>
+    <option value="name2img">🏷️ 이름 (이름 → 캐릭터 맞추기)</option>
+    <option value="mixed">🔀 교차 (그림↔이름 50:50)</option>
+    <option value="trivia">❓ 질문 (프로필·시즌·등장 퀴즈)</option>
+  </select>
+</div>
+
+<div class="setting-row-inline" id="setting-trivia-count-row">
+  <span class="setting-label">질문 모드 한 세트 문항 수</span>
+  <select id="trivia-count-select" class="setting-select compact">
+    <option value="5">5문항</option>
+    <option value="10">10문항</option>
+    <option value="15">15문항</option>
+    <option value="20">20문항</option>
+    <option value="30">30문항</option>
+  </select>
+</div>
+
+<div class="setting-row-inline" id="setting-trivia-showname-row">
+  <span class="setting-label">질문 모드 보기에 그림 + 이름 함께 표시</span>
+  <input type="checkbox" id="trivia-show-name" class="setting-checkbox">
+</div>
+
+<div class="setting-row-inline" id="setting-sanrio-lang-row">
+  <span class="setting-label">산리오 이름 언어</span>
+  <select id="name-lang-select" class="setting-select">
+    <option value="ko">🇰🇷 한국어 이름 (배드바츠마루)</option>
+    <option value="en">🔤 영문 이름 (Bad Badtz-Maru)</option>
+    <option value="both">✨ 한글 + 영문 병기</option>
+  </select>
+</div>
+
+<div class="setting-row-inline">
+  <span class="setting-label">학습 풀 크기 (최소 4 ~ 최대 50)</span>
+  <input type="number" id="pool-size" class="setting-number-input" min="4" max="50" value="{{MAX_POOL_SIZE}}">
+</div>
+
+<div class="setting-row-inline">
+  <span class="setting-label">자동 진도 (신규 캐릭터 자동 영입)</span>
+  <input type="checkbox" id="auto-progress" class="setting-checkbox" {{#if autoProgress}}checked{{/if}}>
+</div>
+
+<div class="setting-row-inline">
+  <span class="setting-label">오답 시 정답 안내</span>
+  <button type="button" id="btn-error-show" class="setting-toggle-btn">표시</button>
+</div>
+
+<div class="setting-row-inline">
+  <span class="setting-label">관전 모드 전환 주기</span>
+  <select id="spectator-interval" class="setting-select compact">
+    <option value="1">1초</option>
+    <option value="1.5">1.5초</option>
+    <option value="2">2초</option>
+    <option value="3">3초</option>
+    <option value="4">4초</option>
+    <option value="5">5초</option>
+  </select>
+</div>
+
+{{keybindingsConfig}}

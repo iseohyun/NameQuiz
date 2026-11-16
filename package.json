@@ -1,0 +1,11 @@
+{
+  "name": "namequiz",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "산리오 40종 캐릭터 그림↔이름 양방향 간격 반복 퀴즈 웹앱",
+  "scripts": {
+    "build": "node scripts/verify-build.mjs",
+    "crop": "python scripts/crop_characters.py"
+  }
+}

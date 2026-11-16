@@ -1,0 +1,47 @@
+<div class="leaderboard-container">
+  <div class="leaderboard-top-bar">
+    <h2 class="leaderboard-heading">🏆 명예의 전당</h2>
+    <select id="leaderboard-domain-select" class="leaderboard-filter-select" onchange="changeLeaderboardDomain(this.value)">
+      <optgroup label="🎀 산리오 캐릭터즈">
+        <option value="all_sanrio">산리오 전체 유형 (40종)</option>
+        <option value="sanrio(그림→이름)">산리오 · 그림 (캐릭터→이름)</option>
+        <option value="sanrio(이름→그림)">산리오 · 이름 (이름→캐릭터)</option>
+        <option value="sanrio(혼합)">산리오 · 교차 (그림↔이름)</option>
+        <option value="sanrio(질문)">산리오 · 질문 (프로필 퀴즈)</option>
+      </optgroup>
+      <optgroup label="💖 캐치! 티니핑">
+        <option value="all_teenieping">티니핑 전체 시즌 통합 (179종)</option>
+        <option value="teenieping(질문)">티니핑 · 질문 (프로필 퀴즈)</option>
+        <option value="scope:teenieping-1기">티니핑 1기 · 큐브 (44종)</option>
+        <option value="scope:teenieping-2기">티니핑 2기 · 보석 (20종)</option>
+        <option value="scope:teenieping-3기">티니핑 3기 · 열쇠 (21종)</option>
+        <option value="scope:teenieping-4기">티니핑 4기 · 디저트 (21종)</option>
+        <option value="scope:teenieping-5기">티니핑 5기 · 스타 (25종)</option>
+        <option value="scope:teenieping-6기">티니핑 6기 · 프린세스 (24종)</option>
+        <option value="scope:teenieping-7기">티니핑 7기 · 스테이지 (19종)</option>
+        <option value="scope:teenieping-극장판">티니핑 극장판 (5종)</option>
+      </optgroup>
+    </select>
+  </div>
+
+  <div class="leaderboard-tabs">
+    <button type="button" id="tab-speedrun" class="tab-btn active" onclick="switchLeaderboardMode('speedrun')">기록 모드</button>
+    <button type="button" id="tab-study" class="tab-btn" onclick="switchLeaderboardMode('study')">학습 모드</button>
+  </div>
+
+  <div class="leaderboard-table-wrap">
+    <table class="leaderboard-table">
+      <thead id="leaderboard-header">
+        <tr>
+          <th>순위</th>
+          <th>아이디</th>
+          <th>도메인 / 유형</th>
+          <th>소요시간</th>
+          <th>정답률</th>
+          <th>완료 시각</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboard-list"></tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,34 @@
+<div class="stats-panel-card">
+  <div class="stats-panel-header">
+    <span class="stats-panel-title">최근 일주일 학습량</span>
+    <span class="stats-panel-sub">총 학습: <strong id="total-study-time">0분</strong></span>
+  </div>
+  <div id="study-chart-container" class="study-chart-container"></div>
+</div>
+
+<div class="stats-panel-card">
+  <span class="stats-panel-title block-title">응답 속도 분포 (0.2초 간격)</span>
+  <div id="response-time-chart" class="response-time-chart"></div>
+  <div class="response-axis-labels">
+    <span>0s</span><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>5s+</span>
+  </div>
+</div>
+
+<div id="pokedex-season-tabs" class="pokedex-season-tabs hidden"></div>
+
+<div class="progress-toolbar">
+  <div class="progress-summary-text">
+    도감 해금: <span id="settings-active-count">0 / 0 (0.0%)</span>
+  </div>
+  <div class="progress-action-btns">
+    <button type="button" id="btn-analysis" class="mini-action-btn purple" onclick="toggleAnalysisMode()">응답속도</button>
+    <button type="button" class="mini-action-btn green" onclick="unlockAllCharacters()">모두 해금</button>
+    <button type="button" class="mini-action-btn red" onclick="resetAllProgressData()">모두 초기화</button>
+  </div>
+</div>
+
+<p class="pokedex-guide-hint">💡 캐릭터 카드를 클릭하면 <b>상세 프로필 정보</b> 확인 및 개별 해금/초기화가 가능합니다.</p>
+
+<div class="pokedex-grid-scroll">
+  <div id="progress-grid" class="pokedex-grid"></div>
+</div>
