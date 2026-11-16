@@ -68,6 +68,14 @@ import {
 } from './components/engine.js';
 import { generateTriviaQuestion } from './components/trivia-generator.js';
 import {
+  SEASON_META,
+  getActiveSeasonTheme,
+  cycleSeasonTheme,
+  setSeasonTheme,
+  startSeasonalStage,
+  stopSeasonalStage
+} from './components/seasonal-stage.js';
+import {
   renderStudyStatsChart,
   renderResponseTimeChart,
   renderProgressTable,
@@ -126,201 +134,41 @@ let isTriviaSetSession = false;
 let triviaSetLogs = [];
 let usedTriviaSignatures = new Set();
 
-// 메인 화면 우하단 카드 유영 캐릭터 애니메이션 상태 (최대 10개)
-const MAX_FLOATING_CHARS = 10;
-let floatingRafId = null;
-let floatingSpawnTimerId = null;
-let activeFloatingSprites = [];
-let lastFloatingFrameTs = 0;
-
 function stopInfoCardFloatingChars() {
-  if (floatingRafId) {
-    cancelAnimationFrame(floatingRafId);
-    floatingRafId = null;
-  }
-  if (floatingSpawnTimerId) {
-    clearInterval(floatingSpawnTimerId);
-    floatingSpawnTimerId = null;
-  }
-  activeFloatingSprites = [];
-  lastFloatingFrameTs = 0;
-}
-
-function spawnOneFloatingChar(stageEl, charsPool, domain, enterAlreadyInside = false) {
-  if (!stageEl || !charsPool || charsPool.length === 0) return;
-  if (activeFloatingSprites.length >= MAX_FLOATING_CHARS) return;
-
-  const rect = stageEl.getBoundingClientRect();
-  const stageW = rect.width || 280;
-  const stageH = rect.height || 260;
-
-  // 현재 스테이지에 떠 있는 캐릭터와 가급적 겹치지 않게 선택
-  const activeIds = new Set(activeFloatingSprites.map((s) => s.charId));
-  let candidates = charsPool.filter((c) => !activeIds.has(c.charId));
-  if (candidates.length === 0) candidates = charsPool;
-  const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-
-  const size = Math.round(44 + Math.random() * 16); // 44px ~ 60px
-  const speed = 24 + Math.random() * 20; // 24 ~ 44 px/s
-  const side = Math.floor(Math.random() * 4); // 0: 상, 1: 하, 2: 좌, 3: 우
-
-  let x = 0;
-  let y = 0;
-  let vx = 0;
-  let vy = 0;
-
-  // 가장자리(상·하·좌·우)에서 카드 안쪽을 향해 비스듬히 유영하며 진입
-  const crossDrift = (Math.random() - 0.5) * 22;
-  if (side === 0) {
-    // 상 -> 하
-    x = 12 + Math.random() * Math.max(20, stageW - size - 24);
-    y = -size + 2;
-    vx = crossDrift;
-    vy = speed;
-  } else if (side === 1) {
-    // 하 -> 상
-    x = 12 + Math.random() * Math.max(20, stageW - size - 24);
-    y = stageH - 2;
-    vx = crossDrift;
-    vy = -speed;
-  } else if (side === 2) {
-    // 좌 -> 우
-    x = -size + 2;
-    y = 10 + Math.random() * Math.max(20, stageH - size - 20);
-    vx = speed;
-    vy = crossDrift;
-  } else {
-    // 우 -> 좌
-    x = stageW - 2;
-    y = 10 + Math.random() * Math.max(20, stageH - size - 20);
-    vx = -speed;
-    vy = crossDrift;
-  }
-
-  // 첫 화면 진입 직후 빈 공간이 보이지 않도록 일부 개체는 진입 경로 중간 지점에서 시작
-  if (enterAlreadyInside) {
-    const advanceSec = 0.8 + Math.random() * 3.2;
-    x += vx * advanceSec;
-    y += vy * advanceSec;
-  }
-
-  const img = document.createElement('img');
-  img.src = chosen.imageUrl;
-  img.alt = '';
-  img.className = `floating-char-sprite ${domain === 'sanrio' ? 'sanrio-sprite' : 'teenieping-sprite'}`;
-  img.style.width = `${size}px`;
-  img.style.height = `${size}px`;
-  stageEl.appendChild(img);
-
-  const sprite = {
-    charId: chosen.charId,
-    el: img,
-    size,
-    x,
-    y,
-    vx,
-    vy,
-    age: Math.random() * 10,
-    bobAmp: 4 + Math.random() * 6,
-    bobFreq: 1.4 + Math.random() * 1.2,
-    tiltAmp: 5 + Math.random() * 6,
-    isHorizontalPrimary: side === 2 || side === 3
-  };
-
-  img.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
-  activeFloatingSprites.push(sprite);
+  stopSeasonalStage();
 }
 
 function startInfoCardFloatingChars() {
-  stopInfoCardFloatingChars();
-
   const stageEl = document.getElementById('info-floating-stage');
   if (!stageEl) return;
 
   const domain = userConfig.currentDomain;
   const seasonFilter = getActiveSeasonFilter();
   const charsPool = getCharacters(domain, seasonFilter);
-  if (!charsPool || charsPool.length === 0) return;
-
-  // 초기 진입 시 6마리가 상하좌우에서 자연스럽게 유영 중인 상태로 시작 후 최대 10마리까지 충원
-  const initialCount = Math.min(6, MAX_FLOATING_CHARS);
-  for (let i = 0; i < initialCount; i++) {
-    spawnOneFloatingChar(stageEl, charsPool, domain, i < 4);
-  }
-
-  floatingSpawnTimerId = setInterval(() => {
-    const currentStage = document.getElementById('info-floating-stage');
-    if (!currentStage) {
-      stopInfoCardFloatingChars();
-      return;
-    }
-    if (activeFloatingSprites.length < MAX_FLOATING_CHARS) {
-      spawnOneFloatingChar(currentStage, charsPool, domain, false);
-    }
-  }, 550);
-
-  const step = (ts) => {
-    const currentStage = document.getElementById('info-floating-stage');
-    if (!currentStage) {
-      stopInfoCardFloatingChars();
-      return;
-    }
-
-    if (!lastFloatingFrameTs) lastFloatingFrameTs = ts;
-    const dt = Math.min(0.05, (ts - lastFloatingFrameTs) / 1000);
-    lastFloatingFrameTs = ts;
-
-    const rect = currentStage.getBoundingClientRect();
-    const stageW = rect.width || 280;
-    const stageH = rect.height || 260;
-
-    // 캐릭터끼리 완전히 포개지지 않도록 부드러운 상호 밀어내기(Soft Separation) 적용
-    for (let i = 0; i < activeFloatingSprites.length; i++) {
-      for (let j = i + 1; j < activeFloatingSprites.length; j++) {
-        const a = activeFloatingSprites[i];
-        const b = activeFloatingSprites[j];
-        const dx = (b.x + b.size * 0.5) - (a.x + a.size * 0.5);
-        const dy = (b.y + b.size * 0.5) - (a.y + a.size * 0.5);
-        const dist = Math.hypot(dx, dy) || 1;
-        const minDist = (a.size + b.size) * 0.48;
-        if (dist < minDist) {
-          const push = (minDist - dist) * 1.6 * dt;
-          const nx = dx / dist;
-          const ny = dy / dist;
-          a.x -= nx * push * 18;
-          a.y -= ny * push * 18;
-          b.x += nx * push * 18;
-          b.y += ny * push * 18;
-        }
-      }
-    }
-
-    for (let i = activeFloatingSprites.length - 1; i >= 0; i--) {
-      const s = activeFloatingSprites[i];
-      s.age += dt;
-      s.x += s.vx * dt;
-      s.y += s.vy * dt;
-
-      const bobOffset = Math.sin(s.age * s.bobFreq) * s.bobAmp;
-      const drawX = s.isHorizontalPrimary ? s.x : s.x + bobOffset;
-      const drawY = s.isHorizontalPrimary ? s.y + bobOffset : s.y;
-      const tiltDeg = Math.sin(s.age * (s.bobFreq * 0.85)) * s.tiltAmp;
-
-      const margin = s.size + 18;
-      if (s.x < -margin || s.x > stageW + margin || s.y < -margin || s.y > stageH + margin) {
-        s.el.remove();
-        activeFloatingSprites.splice(i, 1);
-        continue;
-      }
-
-      s.el.style.transform = `translate3d(${drawX.toFixed(1)}px, ${drawY.toFixed(1)}px, 0) rotate(${tiltDeg.toFixed(1)}deg)`;
-    }
-
-    floatingRafId = requestAnimationFrame(step);
-  };
-
-  floatingRafId = requestAnimationFrame(step);
+  startSeasonalStage(stageEl, charsPool);
 }
+
+window.cycleInfoCardSeason = function (event) {
+  if (event && event.target && ['SELECT', 'OPTION'].includes(event.target.tagName)) return;
+  const nextTheme = cycleSeasonTheme();
+  const meta = SEASON_META[nextTheme];
+  const badgeEl = document.getElementById('season-theme-badge');
+  if (badgeEl && meta) {
+    badgeEl.innerText = `${meta.icon} ${meta.label}`;
+    badgeEl.classList.remove('pulse-scale');
+    void badgeEl.offsetWidth;
+    badgeEl.classList.add('pulse-scale');
+  }
+  startInfoCardFloatingChars();
+};
+
+window.setInfoCardSeason = function (themeName) {
+  const nextTheme = setSeasonTheme(themeName);
+  const meta = SEASON_META[nextTheme];
+  const badgeEl = document.getElementById('season-theme-badge');
+  if (badgeEl && meta) badgeEl.innerText = `${meta.icon} ${meta.label}`;
+  startInfoCardFloatingChars();
+};
 
 function getActiveSeasonFilter() {
   return userConfig.currentDomain === 'teenieping' ? (userConfig.teeniepingSeason || 'all') : 'all';
@@ -392,8 +240,9 @@ function buildMainSelectionHtml() {
         <span class="keybind-badge" id="kb-badge-startSpectator">E</span>
       </button>
 
-      <div class="mode-info-card">
+      <div class="mode-info-card" ondblclick="cycleInfoCardSeason(event)" title="더블클릭하면 계절 테마(봄·여름·가을·겨울)가 바뀝니다">
         <div id="info-floating-stage" class="info-floating-stage" aria-hidden="true"></div>
+        <span id="season-theme-badge" class="season-theme-badge">${SEASON_META[getActiveSeasonTheme()].icon} ${escapeHtml(SEASON_META[getActiveSeasonTheme()].label)}</span>
         <div class="info-card-overlay-content">
           <div class="info-card-text">
             <strong>${escapeHtml(domainHeadline)}</strong>
