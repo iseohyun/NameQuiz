@@ -55,6 +55,7 @@ export const userConfig = {
   learningTime: 60,
   MAX_POOL_SIZE: 10,
   autoProgress: true,
+  reviewReminder: true, // 복습 알림 예약 여부 (설정 화면에서 끄고 켠다)
   currentDomain: 'sanrio',       // 'sanrio' | 'teenieping'
   teeniepingSeason: 'all',       // 'all' | '1기' ~ '7기' | '극장판'
   quizDirection: 'mixed',        // 'img2name' | 'name2img' | 'mixed' | 'trivia'

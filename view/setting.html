@@ -99,6 +99,16 @@
 </div>
 
 <div class="setting-row-inline">
+  <span class="setting-label">복습 알림</span>
+  <div class="setting-notify-ctrl">
+    <span id="notify-status" class="setting-notify-status"></span>
+    <button id="btn-notify-enable" type="button" class="setting-notify-btn" hidden>권한 허용</button>
+    <input type="checkbox" id="review-reminder" class="setting-checkbox" aria-label="복습 알림 받기">
+  </div>
+</div>
+<p id="notify-last" class="setting-notify-last" hidden></p>
+
+<div class="setting-row-inline">
   <span class="setting-label">오답 시 정답 안내</span>
   <button type="button" id="btn-error-show" class="setting-toggle-btn">표시</button>
 </div>

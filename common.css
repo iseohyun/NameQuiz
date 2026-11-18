@@ -1832,6 +1832,66 @@ body {
   cursor: pointer;
 }
 
+/* 설정 모달: 복습 알림 줄 (상태 문구 + 권한 허용 버튼 + 켜고 끄기, Common GUI push) */
+.setting-notify-ctrl {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  text-align: right;
+}
+
+.setting-notify-status {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.setting-notify-status[data-state="granted"] {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.setting-notify-status[data-state="default"],
+.setting-notify-status[data-state="denied"],
+.setting-notify-status[data-state="failed"] {
+  color: #dc2626;
+}
+
+.setting-notify-last {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+  text-align: right;
+}
+
+.setting-notify-last[hidden] {
+  display: none;
+}
+
+.setting-notify-last[data-ok="false"] {
+  color: #dc2626;
+}
+
+.setting-notify-btn {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  background: #ec4899;
+  color: #ffffff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.setting-notify-btn[hidden] {
+  display: none;
+}
+
+.setting-notify-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .setting-toggle-btn {
   padding: 6px 14px;
   color: #ffffff;
