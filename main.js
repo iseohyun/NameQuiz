@@ -134,6 +134,8 @@ let isTimeUp = false;
 let isStartingSession = false;
 
 // 기록 모드(스피드런) 및 질문(Trivia) 세트 전용 상태
+// 캐릭터 기록 모드 한 판의 문제 수 상한. 보기(오답 후보)는 범위 전체에서 뽑는다.
+const SPEEDRUN_MAX_QUESTIONS = 20;
 let srElapsedTime = 0;
 let srTotalCount = 0;
 let srCurrentIndex = 0;
@@ -218,7 +220,7 @@ function buildMainSelectionHtml() {
     : '간격 반복 양방향 퀴즈로 캐릭터 익히기';
   const recordDesc = isTrivia
     ? `${triviaCnt}문항 프로필 퀴즈 타임어택 순위 경쟁`
-    : `${totalInScope}종 전체 타임어택 속도 측정`;
+    : `${Math.min(totalInScope, SPEEDRUN_MAX_QUESTIONS)}문제 타임어택 속도 측정`;
 
   return `
     <div id="mode-selection-layer" class="mode-selection">
@@ -949,12 +951,12 @@ async function startSpeedrunSession() {
 
   currentPool.sort(() => Math.random() - 0.5);
 
-  srTotalCount = currentPool.length;
+  srTotalCount = Math.min(currentPool.length, SPEEDRUN_MAX_QUESTIONS);
   srCurrentIndex = 0;
   srCorrectCount = 0;
   srElapsedTime = 0;
 
-  await preloadCharacterImages(currentPool);
+  await preloadCharacterImages(currentPool.slice(0, srTotalCount));
 
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(tickSpeedrunTimer, 1000);
@@ -975,7 +977,7 @@ async function renderNextSpeedrunQuestion() {
   }
 
   if (srCurrentIndex % 16 === 0 && srCurrentIndex + 16 < srTotalCount) {
-    preloadCharacterImages(currentPool.slice(srCurrentIndex + 16, srCurrentIndex + 40));
+    preloadCharacterImages(currentPool.slice(srCurrentIndex + 16, Math.min(srCurrentIndex + 40, srTotalCount)));
   }
 
   const domain = userConfig.currentDomain;
