@@ -67,6 +67,7 @@ import {
   buildMergedCharacterList
 } from './components/engine.js';
 import { generateTriviaQuestion } from './components/trivia-generator.js';
+import { startUpdateChecker } from './components/update-checker.js';
 import {
   SEASON_META,
   getActiveSeasonTheme,
@@ -260,6 +261,9 @@ function buildMainSelectionHtml() {
 window.addEventListener('load', initApp);
 
 async function initApp() {
+  // 새 판 감지: 설치한 앱은 스스로 다시 불러오지 않으므로 서버의 판을 확인해 안내한다 (Common GUI update-notice)
+  startUpdateChecker();
+
   await loadCharacterDataset();
   updateHeaderControlBadges();
   resetToMainModeSelection();

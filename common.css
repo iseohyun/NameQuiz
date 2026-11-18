@@ -1504,6 +1504,56 @@ body {
   margin-top: 1px;
 }
 
+/* 새 판 안내 띠: 화면 아래 가운데, 상세 프로필 모달(1200)보다 위 */
+.update-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  width: fit-content;
+  margin: 0 auto;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 10px 10px 16px;
+  border-radius: 12px;
+  background: #1e293b;
+  color: #ffffff;
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.3);
+}
+
+.update-banner-text {
+  white-space: nowrap;
+}
+
+.update-banner-reload {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  background: #ec4899;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.update-banner-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 /* 캐릭터 상세 프로필 서브 모달 */
 .char-detail-overlay {
   position: fixed;
