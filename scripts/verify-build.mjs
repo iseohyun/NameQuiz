@@ -22,7 +22,7 @@ function fail(msg) {
 }
 
 // 1. 필수 루트 파일 확인
-for (const reqFile of ['index.html', 'common.css', 'main.js', 'favicon.svg', 'characters/sanrio.cvs', 'characters/Teenieping.cvs']) {
+for (const reqFile of ['index.html', 'common.css', 'main.js', 'favicon.svg', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'characters/sanrio.cvs', 'characters/Teenieping.cvs']) {
   const full = path.join(rootDir, reqFile);
   if (!fs.existsSync(full)) {
     fail(`필수 파일 누락: ${reqFile}`);

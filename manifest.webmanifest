@@ -1,0 +1,17 @@
+{
+  "name": "NameQuiz - 산리오 & 티니핑 캐릭터 퀴즈",
+  "short_name": "NameQuiz",
+  "description": "산리오·티니핑 캐릭터 그림↔이름 간격 반복 퀴즈",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fdf2f8",
+  "theme_color": "#ec4899",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
