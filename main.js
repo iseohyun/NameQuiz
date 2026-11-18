@@ -76,7 +76,7 @@ import {
   getLastReminderResult
 } from './components/notification-handler.js';
 import { initNotificationInbox, openInboxModal } from './components/notification-inbox.js';
-import { getTopHint, renderHintHallOfFame } from './components/hint-handler.js';
+import { openHintListModal, renderHintHallOfFame } from './components/hint-handler.js';
 import {
   SEASON_META,
   getActiveSeasonTheme,
@@ -611,7 +611,8 @@ function renderQuestionPromptAndOptions(optionsContainer, onAnswerCallback) {
 }
 
 /**
- * 학습 모드 문제 카드의 💡 단추. 누르면 그 캐릭터의 대표 힌트를 보여 준다.
+ * 학습 모드 문제 카드의 💡 단추. 누르면 그 캐릭터의 힌트 목록 창을 연다(내 힌트 쓰기 포함).
+ * 창이 열려 있는 동안은 풀이 시간을 멈추고, 닫으면 다시 흐르게 한다.
  * 기록 모드, 관전, 질문 퀴즈에는 달지 않는다.
  */
 function renderPromptHintButton(promptCard, domain, targetMeta, questionType) {
@@ -621,19 +622,18 @@ function renderPromptHintButton(promptCard, domain, targetMeta, questionType) {
   const area = document.createElement('div');
   area.className = 'prompt-hint-area';
   area.innerHTML = `
-    <button type="button" class="prompt-hint-btn" title="힌트 보기" aria-label="힌트 보기">
+    <button type="button" class="prompt-hint-btn" title="힌트 보기·쓰기" aria-label="힌트 보기·쓰기">
       <span class="material-symbols-outlined">lightbulb</span>
     </button>
-    <p class="prompt-hint-text" hidden></p>
   `;
-  const btn = area.querySelector('.prompt-hint-btn');
-  const textEl = area.querySelector('.prompt-hint-text');
-  btn.addEventListener('click', async () => {
-    btn.disabled = true;
-    const top = await getTopHint(domain, targetMeta.koName);
-    if (!area.isConnected) return;
-    textEl.textContent = top ? top.text : '아직 힌트가 없어요.';
-    textEl.hidden = false;
+  area.querySelector('.prompt-hint-btn').addEventListener('click', () => {
+    const pausedByHint = !isPaused && !isTimeUp;
+    if (pausedByHint) window.pauseGameTrigger();
+    openHintListModal(domain, targetMeta.koName, {
+      onClose: () => {
+        if (pausedByHint && isPaused) window.pauseGameTrigger();
+      }
+    });
   });
   promptCard.appendChild(area);
 }

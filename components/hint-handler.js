@@ -260,9 +260,11 @@ export async function renderHintSection(container, domain, koName) {
 }
 
 /**
- * 힌트 목록 창. 기본 힌트, 사용자 힌트(따봉 순), 내 힌트 편집 칸.
+ * 힌트 목록 창. 맨 위에 내 힌트(없으면 올리기 칸), 그 아래 다른 힌트를 따봉 많은 순으로.
+ * 기본 힌트는 따봉 0개로 치고, 따봉이 같으면 사용자 힌트보다 앞에 둔다.
+ * @param {{onChange?: Function, onClose?: Function}} options
  */
-export async function openHintListModal(domain, koName, { onChange } = {}) {
+export async function openHintListModal(domain, koName, { onChange, onClose } = {}) {
   document.querySelector('.hint-list-overlay')?.remove();
   const charKey = buildCharKey(domain, koName);
   const overlay = document.createElement('div');
@@ -273,75 +275,69 @@ export async function openHintListModal(domain, koName, { onChange } = {}) {
         <h4>💡 ${escapeHtml(koName)} 힌트</h4>
         <button type="button" class="hint-list-close" aria-label="닫기">&times;</button>
       </div>
-      <div class="hint-my-box"></div>
-      <ul class="hint-list"><li class="hint-list-empty">불러오는 중…</li></ul>
+      <div class="hint-list-scroll">
+        <div class="hint-my-box"></div>
+        <ul class="hint-list"><li class="hint-list-empty">불러오는 중…</li></ul>
+      </div>
     </div>
   `;
+  const close = () => {
+    overlay.remove();
+    onClose?.();
+  };
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay || e.target.closest('.hint-list-close')) overlay.remove();
+    if (e.target === overlay || e.target.closest('.hint-list-close')) close();
   });
   document.body.appendChild(overlay);
 
   const myBox = overlay.querySelector('.hint-my-box');
   const listEl = overlay.querySelector('.hint-list');
+  let editing = false;
 
-  const render = async () => {
-    let hints = [];
-    let loadFailed = false;
-    try {
-      hints = await fetchUserHints(domain, koName);
-    } catch (error) {
-      console.error('[Hint] 힌트 목록을 읽지 못했습니다:', error);
-      loadFailed = true;
-    }
-    if (loadFailed) {
-      myBox.innerHTML = '<p class="hint-login-note">사용자 힌트를 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.</p>';
-    } else {
-      renderMyHintEditor(myBox, hints.find((h) => h.isMine) || null);
-    }
+  const likeButtonHtml = (h, key) => {
+    const likeDisabled = !auth.currentUser || h.isMine;
+    const likeTitle = !auth.currentUser ? '로그인하면 따봉을 누를 수 있어요' : (h.likedByMe ? '따봉 취소' : '따봉');
+    return `<button type="button" class="hint-like-btn${h.likedByMe ? ' liked' : ''}" data-key="${key}"
+      ${likeDisabled ? 'disabled' : ''} title="${likeTitle}" aria-label="${likeTitle}">👍 ${h.likeCount}</button>`;
+  };
 
-    const seedText = getSeedHint(domain, koName);
-    const rows = [];
-    if (seedText) {
-      rows.push(`
-        <li class="hint-item is-seed">
-          <p class="hint-item-text">${escapeHtml(seedText)}</p>
-          <div class="hint-item-foot"><span class="hint-meta">기본 힌트</span></div>
-        </li>
-      `);
-    }
-    hints.forEach((h, idx) => {
-      const likeDisabled = !auth.currentUser || h.isMine;
-      const likeTitle = !auth.currentUser ? '로그인하면 따봉을 누를 수 있어요' : (h.isMine ? '내 힌트' : (h.likedByMe ? '따봉 취소' : '따봉'));
-      rows.push(`
-        <li class="hint-item${h.isMine ? ' is-mine' : ''}">
-          <p class="hint-item-text">${escapeHtml(h.text)}</p>
-          <div class="hint-item-foot">
-            <span class="hint-meta">${escapeHtml(h.authorName)}${h.isMine ? ' (나)' : ''}</span>
-            <button type="button" class="hint-like-btn${h.likedByMe ? ' liked' : ''}" data-idx="${idx}"
-              ${likeDisabled ? 'disabled' : ''} title="${likeTitle}" aria-label="${likeTitle}">👍 ${h.likeCount}</button>
-          </div>
-        </li>
-      `);
+  const bindDelete = (box) => {
+    box.querySelector('.hint-my-delete')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      if (!confirm('내 힌트를 삭제할까요? 받은 따봉도 함께 사라집니다.')) return;
+      btn.disabled = true;
+      try {
+        await deleteMyHint(domain, koName);
+        editing = false;
+        await render();
+        onChange?.();
+      } catch (error) {
+        console.error('[Hint] 힌트 삭제 실패:', error);
+        alert('힌트를 삭제하지 못했어요. 잠시 뒤 다시 시도해 주세요.');
+        btn.disabled = false;
+      }
     });
-    listEl.innerHTML = rows.length ? rows.join('') : '<li class="hint-list-empty">아직 힌트가 없어요.</li>';
+  };
 
-    listEl.querySelectorAll('.hint-like-btn').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const hint = hints[Number(btn.dataset.idx)];
-        if (!hint) return;
-        btn.disabled = true;
-        try {
-          await toggleHintLike(hint, charKey);
-          await render();
-          onChange?.();
-        } catch (error) {
-          console.error('[Hint] 따봉 실패:', error);
-          alert(error?.message?.startsWith('로그인') || error?.message?.startsWith('내 힌트') ? error.message : '따봉을 반영하지 못했어요. 잠시 뒤 다시 눌러 주세요.');
-          btn.disabled = false;
-        }
-      });
+  const renderMyHintCard = (box, mine) => {
+    box.innerHTML = `
+      <div class="hint-item is-mine">
+        <p class="hint-item-text">${escapeHtml(mine.text)}</p>
+        <div class="hint-item-foot">
+          <span class="hint-meta">내 힌트 · 👍 ${mine.likeCount}</span>
+          <span class="hint-my-inline-actions">
+            <button type="button" class="hint-my-edit">수정</button>
+            <button type="button" class="hint-my-delete">삭제</button>
+          </span>
+        </div>
+      </div>
+    `;
+    box.querySelector('.hint-my-edit')?.addEventListener('click', () => {
+      editing = true;
+      renderMyHintEditor(box, mine);
+      box.querySelector('.hint-my-input')?.focus();
     });
+    bindDelete(box);
   };
 
   const renderMyHintEditor = (box, mine) => {
@@ -355,8 +351,8 @@ export async function openHintListModal(domain, koName, { onChange } = {}) {
         placeholder="예) 디어는 사슴이에요.">${escapeHtml(mine?.text || '')}</textarea>
       <div class="hint-my-actions">
         <span class="hint-my-count"></span>
-        ${mine ? '<button type="button" class="hint-my-delete">삭제</button>' : ''}
-        <button type="button" class="hint-my-save">${mine ? '수정' : '올리기'}</button>
+        ${mine ? '<button type="button" class="hint-my-cancel">취소</button>' : ''}
+        <button type="button" class="hint-my-save">${mine ? '저장' : '올리기'}</button>
       </div>
     `;
     const input = box.querySelector('.hint-my-input');
@@ -366,11 +362,16 @@ export async function openHintListModal(domain, koName, { onChange } = {}) {
     input.addEventListener('keydown', (e) => e.stopPropagation());
     updateCount();
 
+    box.querySelector('.hint-my-cancel')?.addEventListener('click', () => {
+      editing = false;
+      renderMyHintCard(box, mine);
+    });
     box.querySelector('.hint-my-save')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget;
       btn.disabled = true;
       try {
         await saveMyHint(domain, koName, input.value);
+        editing = false;
         await render();
         onChange?.();
       } catch (error) {
@@ -379,21 +380,72 @@ export async function openHintListModal(domain, koName, { onChange } = {}) {
         btn.disabled = false;
       }
     });
-    box.querySelector('.hint-my-delete')?.addEventListener('click', async (e) => {
-      const btn = e.currentTarget;
-      if (!confirm('내 힌트를 삭제할까요? 받은 따봉도 함께 사라집니다.')) return;
-      btn.disabled = true;
-      try {
-        await deleteMyHint(domain, koName);
-        await render();
-        onChange?.();
-      } catch (error) {
-        console.error('[Hint] 힌트 삭제 실패:', error);
-        alert('힌트를 삭제하지 못했어요. 잠시 뒤 다시 시도해 주세요.');
-        btn.disabled = false;
-      }
-    });
   };
+
+  async function render() {
+    let hints = [];
+    let loadFailed = false;
+    try {
+      hints = await fetchUserHints(domain, koName);
+    } catch (error) {
+      console.error('[Hint] 힌트 목록을 읽지 못했습니다:', error);
+      loadFailed = true;
+    }
+    if (!overlay.isConnected) return;
+
+    const mine = hints.find((h) => h.isMine) || null;
+    if (loadFailed) {
+      myBox.innerHTML = '<p class="hint-login-note">사용자 힌트를 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.</p>';
+    } else if (mine && !editing) {
+      renderMyHintCard(myBox, mine);
+    } else {
+      renderMyHintEditor(myBox, mine);
+    }
+
+    const seedText = getSeedHint(domain, koName);
+    const entries = hints.filter((h) => !h.isMine).map((h) => ({ hint: h, likes: h.likeCount, seed: false }));
+    if (seedText) entries.push({ hint: null, likes: 0, seed: true });
+    entries.sort((a, b) => (b.likes - a.likes)
+      || (Number(b.seed) - Number(a.seed))
+      || ((b.hint?.updatedAt || 0) - (a.hint?.updatedAt || 0)));
+
+    const rows = entries.map((entry, idx) => {
+      if (entry.seed) {
+        return `
+          <li class="hint-item is-seed">
+            <p class="hint-item-text">${escapeHtml(seedText)}</p>
+            <div class="hint-item-foot"><span class="hint-meta">기본 힌트</span></div>
+          </li>`;
+      }
+      const h = entry.hint;
+      return `
+        <li class="hint-item">
+          <p class="hint-item-text">${escapeHtml(h.text)}</p>
+          <div class="hint-item-foot">
+            <span class="hint-meta">${escapeHtml(h.authorName)}</span>
+            ${likeButtonHtml(h, idx)}
+          </div>
+        </li>`;
+    });
+    listEl.innerHTML = rows.length ? rows.join('') : '<li class="hint-list-empty">아직 다른 힌트가 없어요.</li>';
+
+    listEl.querySelectorAll('.hint-like-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const hint = entries[Number(btn.dataset.key)]?.hint;
+        if (!hint) return;
+        btn.disabled = true;
+        try {
+          await toggleHintLike(hint, charKey);
+          await render();
+          onChange?.();
+        } catch (error) {
+          console.error('[Hint] 따봉 실패:', error);
+          alert(error?.message?.startsWith('로그인') || error?.message?.startsWith('내 힌트') ? error.message : '따봉을 반영하지 못했어요. 잠시 뒤 다시 눌러 주세요.');
+          btn.disabled = false;
+        }
+      });
+    });
+  }
 
   await render();
 }

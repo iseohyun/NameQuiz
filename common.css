@@ -2992,3 +2992,41 @@ textarea,
   user-select: text;
   -webkit-touch-callout: default;
 }
+
+/* 힌트 목록 창: 내 힌트와 다른 힌트를 한 번에 스크롤 */
+.hint-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.hint-list-scroll .hint-list {
+  overflow: visible;
+}
+
+.hint-my-box .hint-item.is-mine {
+  margin-bottom: 0;
+  background: #fdf2f8;
+}
+
+.hint-my-inline-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.hint-my-edit,
+.hint-my-cancel,
+.hint-my-inline-actions .hint-my-delete {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hint-my-cancel {
+  padding: 7px 14px;
+  font-size: inherit;
+}
