@@ -7,6 +7,7 @@ import { getAllProgress } from './db-handler.js';
 import { INTERVALS } from './engine.js';
 import { userConfig } from './store.js';
 import { getRecentLocalDateKeys } from './date-utils.js';
+import { renderHintSection } from './hint-handler.js';
 import {
   TEENIEPING_SEASONS,
   getCharacters,
@@ -159,6 +160,8 @@ export async function openCharacterDetailModal(charId, domain = 'sanrio') {
 
       <div class="char-profile-grid">${profileGridHtml}</div>
 
+      <div class="char-hint-section" id="char-hint-section"></div>
+
       <div class="char-study-status-box">
         <div class="char-study-stat">
           <span>숙련도</span>
@@ -198,6 +201,8 @@ export async function openCharacterDetailModal(charId, domain = 'sanrio') {
   });
 
   document.body.appendChild(overlay);
+
+  renderHintSection(overlay.querySelector('#char-hint-section'), domain, meta.koName);
 
   overlay.querySelector('#btn-detail-unlock')?.addEventListener('click', async () => {
     await window.activateSingleCharProgress?.(domain, charId);
@@ -458,6 +463,7 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
     btnSpeedrun.classList.toggle('active', mode !== 'study');
     btnStudy.classList.toggle('active', mode === 'study');
   }
+  document.getElementById('tab-hints')?.classList.remove('active');
 
   const headerContainer = document.getElementById('leaderboard-header');
   if (headerContainer) {

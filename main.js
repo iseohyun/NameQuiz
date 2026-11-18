@@ -57,7 +57,6 @@ import {
   updateVisualBadges,
   registerGlobalKeybindings
 } from './components/keybind-manager.js';
-import { bindSuggestionEvents } from './components/suggestion-handler.js';
 import {
   initSessionPool,
   pickNextTarget,
@@ -76,6 +75,8 @@ import {
   scheduleReviewNotification,
   getLastReminderResult
 } from './components/notification-handler.js';
+import { initNotificationInbox, openInboxModal } from './components/notification-inbox.js';
+import { getTopHint, renderHintHallOfFame } from './components/hint-handler.js';
 import {
   SEASON_META,
   getActiveSeasonTheme,
@@ -273,6 +274,7 @@ window.addEventListener('load', initApp);
 async function initApp() {
   // 웹 푸시 알림: 이미 허용된 경우에만 토큰을 조용히 받는다. 권한 요청은 설정의 「복습 알림」에서만 한다 (Common GUI push)
   initNotificationToken();
+  initNotificationInbox({ onStartStudy: startStudyFromInbox });
 
   // 새 판 감지: 설치한 앱은 스스로 다시 불러오지 않으므로 서버의 판을 확인해 안내한다 (Common GUI update-notice)
   startUpdateChecker();
@@ -575,6 +577,7 @@ function renderQuestionPromptAndOptions(optionsContainer, onAnswerCallback) {
       promptBody.innerHTML = `<div class="prompt-char-name">${getCharacterNameHtml(targetMeta, userConfig.nameLang)}</div>`;
     }
   }
+  if (promptCard) renderPromptHintButton(promptCard, domain, targetMeta, questionType);
 
   options.forEach((charId, idx) => {
     const btn = document.createElement('button');
@@ -605,6 +608,39 @@ function renderQuestionPromptAndOptions(optionsContainer, onAnswerCallback) {
     };
     optionsContainer.appendChild(btn);
   });
+}
+
+/**
+ * 학습 모드 문제 카드의 💡 단추. 누르면 그 캐릭터의 대표 힌트를 보여 준다.
+ * 기록 모드, 관전, 질문 퀴즈에는 달지 않는다.
+ */
+function renderPromptHintButton(promptCard, domain, targetMeta, questionType) {
+  promptCard.querySelector('.prompt-hint-area')?.remove();
+  if (currentMode !== 'study' || isTriviaSetSession || questionType === 'trivia' || !targetMeta?.koName) return;
+
+  const area = document.createElement('div');
+  area.className = 'prompt-hint-area';
+  area.innerHTML = `
+    <button type="button" class="prompt-hint-btn" title="힌트 보기" aria-label="힌트 보기">
+      <span class="material-symbols-outlined">lightbulb</span>
+    </button>
+    <p class="prompt-hint-text" hidden></p>
+  `;
+  const btn = area.querySelector('.prompt-hint-btn');
+  const textEl = area.querySelector('.prompt-hint-text');
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const top = await getTopHint(domain, targetMeta.koName);
+    if (!area.isConnected) return;
+    textEl.textContent = top ? top.text : '아직 힌트가 없어요.';
+    textEl.hidden = false;
+  });
+  promptCard.appendChild(area);
+}
+
+function startStudyFromInbox() {
+  if (timerInterval && !isTimeUp) return;
+  window.startSessionWorkflow?.('study');
 }
 
 async function handleAnswerFeedback(isCorrect, clickedBtn, targetCharId) {
@@ -1516,10 +1552,6 @@ async function openRemoteModalPopup(viewName, options = {}) {
       renderLeaderboardUI(rankings, mode);
     }
 
-    if (viewName === 'help') {
-      await bindSuggestionEvents();
-    }
-
     if (viewName === 'login') {
       renderLoginModalState(auth.currentUser);
     }
@@ -1711,10 +1743,17 @@ window.popupLeaderboard = (domain = null, mode = 'speedrun') => {
 window.popupSetting = () => openRemoteModalPopup('setting');
 window.popupProgress = () => openRemoteModalPopup('progress');
 window.popupLogin = () => openRemoteModalPopup('login');
+window.popupInbox = () => openInboxModal({ onStartStudy: startStudyFromInbox });
 
 window.changeLeaderboardDomain = async function (targetDomain) {
   window.targetLeaderboardDomain = targetDomain;
   const mode = window.currentLeaderboardMode || 'speedrun';
+  if (mode === 'hints') {
+    ['tab-speedrun', 'tab-study'].forEach((id) => document.getElementById(id)?.classList.remove('active'));
+    document.getElementById('tab-hints')?.classList.add('active');
+    await renderHintHallOfFame();
+    return;
+  }
   const listContainer = document.getElementById('leaderboard-list');
   if (listContainer) {
     const colCount = mode === 'study' ? 7 : 6;
@@ -1728,6 +1767,12 @@ window.changeLeaderboardDomain = async function (targetDomain) {
 
 window.switchLeaderboardMode = async function (mode) {
   window.currentLeaderboardMode = mode;
+  if (mode === 'hints') {
+    ['tab-speedrun', 'tab-study'].forEach((id) => document.getElementById(id)?.classList.remove('active'));
+    document.getElementById('tab-hints')?.classList.add('active');
+    await renderHintHallOfFame();
+    return;
+  }
   const targetDomain = window.targetLeaderboardDomain || getDefaultLeaderboardFilter();
   const listContainer = document.getElementById('leaderboard-list');
   if (listContainer) {

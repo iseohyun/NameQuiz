@@ -564,46 +564,6 @@ export const getStudyRankings = async (limitCount = 10, targetFilter = 'all_sanr
   }
 };
 
-export const submitSuggestion = async (text) => {
-  if (!currentUserUid) return;
-
-  const docRef = doc(db, 'suggestions', currentUserUid);
-  const docSnap = await getDoc(docRef);
-  const existingData = docSnap.exists() ? docSnap.data() : {};
-
-  const suggestionHistory = existingData.suggestionHistory || [];
-  suggestionHistory.push({
-    app: 'NameQuiz',
-    text,
-    timestamp: Date.now()
-  });
-
-  const displayName = (auth && auth.currentUser)
-    ? (auth.currentUser.displayName || '이름 없음')
-    : (localStorage.getItem(GUEST_ID_KEY) || '게스트');
-  const email = (auth && auth.currentUser) ? (auth.currentUser.email || '') : '';
-
-  await setDoc(docRef, {
-    uid: currentUserUid,
-    name: displayName,
-    email,
-    suggestion: `[NameQuiz] ${text}`,
-    suggestionHistory,
-    reply: existingData.reply || '',
-    updatedAt: Date.now()
-  }, { merge: true });
-};
-
-export const getUserSuggestion = async () => {
-  if (!currentUserUid) return null;
-  try {
-    const docSnap = await getDoc(doc(db, 'suggestions', currentUserUid));
-    return docSnap.exists() ? docSnap.data() : null;
-  } catch {
-    return null;
-  }
-};
-
 export const getStoredGuestId = () => localStorage.getItem(GUEST_ID_KEY);
 
 export const findGuestProgressToMerge = () => {

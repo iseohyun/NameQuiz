@@ -2231,7 +2231,7 @@ body {
   color: #334155;
 }
 
-/* 도움말 & 건의사항 */
+/* 도움말 */
 .help-content-wrap h1 {
   font-size: 1.2rem;
   margin: 0 0 12px;
@@ -2260,53 +2260,11 @@ body {
   margin: 0 0 10px;
 }
 
-.suggestion-section {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 
-.suggestion-label {
-  display: block;
-  font-weight: 700;
-  margin-bottom: 4px;
-  font-size: 12.5px;
-  color: #475569;
-}
 
-.suggestion-textarea,
-.suggestion-reply-textarea {
-  width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  font-family: inherit;
-  font-size: 13px;
-  box-sizing: border-box;
-}
 
-.suggestion-textarea {
-  height: 90px;
-  resize: vertical;
-}
 
-.suggestion-reply-textarea {
-  height: 110px;
-  background: #f8fafc;
-  color: #475569;
-  resize: none;
-}
 
-.suggestion-submit-btn {
-  padding: 10px;
-  background: linear-gradient(135deg, #ec4899, #6366f1);
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  font-weight: 700;
-  cursor: pointer;
-  font-size: 13px;
-}
 
 /* 로그인 모달 */
 .auth-modal-container {
@@ -2577,6 +2535,11 @@ body {
   .user-name-trigger {
     padding: 4px 8px;
     font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  .user-info-right {
+    gap: 4px;
   }
 
   #main-box {
@@ -2636,4 +2599,396 @@ body {
   .question-prompt-card.prompt-image-mode {
     height: clamp(112px, 23vh, 165px);
   }
+}
+
+/* ==========================================================================
+   알림함 (헤더 종 아이콘 → 받은 복습 알림 목록)
+   ========================================================================== */
+.inbox-unread-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: #ffffff;
+  border-radius: 10px;
+  min-width: 18px;
+  height: 18px;
+  font-size: 10px;
+  font-weight: 800;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.inbox-overlay,
+.hint-list-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1300;
+  animation: fadeIn 0.18s ease;
+}
+
+.inbox-card,
+.hint-list-card {
+  width: min(440px, 100%);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+}
+
+.inbox-header,
+.hint-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.inbox-header h4,
+.hint-list-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-main);
+}
+
+.inbox-close,
+.hint-list-close {
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.inbox-list,
+.hint-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.inbox-item,
+.hint-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid #f1f5f9;
+  margin-bottom: 8px;
+}
+
+.inbox-item.unread {
+  border-color: #fbcfe8;
+  background: #fdf2f8;
+}
+
+.inbox-item-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.inbox-item-title {
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.inbox-item-time {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.inbox-item-body {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.inbox-empty,
+.hint-list-empty {
+  padding: 24px 8px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.inbox-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.inbox-clear,
+.hint-my-delete {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  border-radius: var(--radius-full);
+  padding: 7px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.inbox-study,
+.hint-my-save {
+  border: none;
+  background: #ec4899;
+  color: #ffffff;
+  border-radius: var(--radius-full);
+  padding: 7px 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.hint-my-save:disabled,
+.hint-my-delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ==========================================================================
+   캐릭터 힌트 (상세 카드의 대표 힌트, 힌트 목록, 문제 화면의 💡)
+   ========================================================================== */
+.char-hint-section {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+}
+
+.hint-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hint-section-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #b45309;
+}
+
+.hint-list-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: #fef3c7;
+  color: #b45309;
+  cursor: pointer;
+}
+
+.hint-list-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.hint-top-text {
+  margin: 4px 0 2px;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  line-height: 1.45;
+}
+
+.hint-top-empty {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.hint-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.hint-my-box {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.hint-my-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.hint-my-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.hint-my-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.hint-my-count {
+  margin-right: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.hint-login-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.hint-item.is-seed {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.hint-item.is-mine {
+  border-color: #fbcfe8;
+}
+
+.hint-item-text {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  line-height: 1.45;
+  word-break: break-all;
+}
+
+.hint-item-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hint-like-btn {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+}
+
+.hint-like-btn.liked {
+  background: #fdf2f8;
+  border-color: #f9a8d4;
+  color: #be185d;
+}
+
+.hint-like-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.prompt-hint-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  max-width: 100%;
+}
+
+.prompt-hint-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: #fef3c7;
+  color: #b45309;
+  cursor: pointer;
+}
+
+.prompt-hint-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.prompt-hint-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.prompt-hint-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #92400e;
+  line-height: 1.4;
+}
+
+/* 아주 좁은 휴대폰(알림함 종까지 7개 아이콘)에서 헤더가 한 줄에 들어가게 */
+@media (max-width: 380px) {
+  .user-profile-box {
+    padding: 8px 8px;
+    gap: 4px;
+  }
+
+  .menu-item {
+    width: 32px;
+    height: 32px;
+  }
+
+  .user-name-trigger {
+    padding: 4px 6px;
+    gap: 3px;
+  }
+
+  #profile-name {
+    display: inline-block;
+    max-width: 64px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+  }
+}
+
+/* 앱 화면의 글자를 누르거나 길게 눌러도 선택되지 않게 한다.
+   설치한 앱에서 글자가 선택되면 Chrome의 「탭하여 검색」 서랍(「검색 결과를 보려면 탭하세요」)이 아래에서 올라온다.
+   글을 입력하는 칸은 그대로 선택할 수 있다. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
