@@ -1,3 +1,10 @@
+<!-- 설정 화면: 네 묶음을 접고 펼친다(QuizApp Common GUI 「설정」, CharQuiz 와 같은 모양) -->
+<details class="setting-group" open>
+  <summary class="setting-group-head">
+    <span>사용자</span>
+    <span class="material-symbols-outlined setting-group-chev" aria-hidden="true">expand_more</span>
+  </summary>
+  <div class="setting-group-body">
 <div class="setting-user-card">
   <div class="setting-user-row">
     <span class="setting-user-name">{{userName}}</span>
@@ -21,7 +28,15 @@
     <span class="setting-user-email">{{userEmail}}</span>
   </div>
 </div>
+  </div>
+</details>
 
+<details class="setting-group" open>
+  <summary class="setting-group-head">
+    <span>개인화 설정</span>
+    <span class="material-symbols-outlined setting-group-chev" aria-hidden="true">expand_more</span>
+  </summary>
+  <div class="setting-group-body">
 <div class="setting-row-block">
   <label class="setting-label" for="time-slider">목표 학습 시간</label>
   <div class="setting-slider-wrap">
@@ -97,7 +112,15 @@
   <span class="setting-label">자동 진도 (신규 캐릭터 자동 영입)</span>
   <input type="checkbox" id="auto-progress" class="setting-checkbox" {{#if autoProgress}}checked{{/if}}>
 </div>
+  </div>
+</details>
 
+<details class="setting-group" open>
+  <summary class="setting-group-head">
+    <span>시스템</span>
+    <span class="material-symbols-outlined setting-group-chev" aria-hidden="true">expand_more</span>
+  </summary>
+  <div class="setting-group-body">
 <div class="setting-row-inline">
   <span class="setting-label">복습 알림</span>
   <div class="setting-notify-ctrl">
@@ -140,5 +163,15 @@
     <option value="5">5초</option>
   </select>
 </div>
+  </div>
+</details>
 
+<details class="setting-group">
+  <summary class="setting-group-head">
+    <span>단축키</span>
+    <span class="material-symbols-outlined setting-group-chev" aria-hidden="true">expand_more</span>
+  </summary>
+  <div class="setting-group-body">
 {{keybindingsConfig}}
+  </div>
+</details>

@@ -3762,3 +3762,54 @@ html[data-accent="orange"] {
   color: var(--accent);
   line-height: 1;
 }
+
+/* 설정 묶음(접고 펼치기). QuizApp Common GUI 「설정」 */
+.setting-group {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.setting-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #0f172a;
+  cursor: pointer;
+  list-style: none;
+  background: #f8fafc;
+}
+
+.setting-group-head::-webkit-details-marker {
+  display: none;
+}
+
+.setting-group-chev {
+  color: #94a3b8;
+  transition: transform 0.2s ease;
+}
+
+.setting-group[open] .setting-group-chev {
+  transform: rotate(180deg);
+}
+
+.setting-group[open] .setting-group-head {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.setting-group-body {
+  padding: 4px 14px 14px;
+}
+
+.setting-group-body > .setting-user-card {
+  margin: 10px 0 0;
+}
+
+.setting-group-body > .setting-row-block {
+  margin: 14px 0 0;
+}
