@@ -9,7 +9,7 @@
  */
 
 import { escapeHtml } from './character-data.js';
-import { renderSisterAppsHtml } from './sister-apps.js';
+import { renderSisterAppsHtml, hydrateSisterApps } from './sister-apps.js';
 import { renderInstallRowHtml } from './install-prompt.js';
 
 const DB_NAME = 'namequiz-inbox';
@@ -165,6 +165,7 @@ export async function openInboxModal({ onStartStudy } = {}) {
     }
   });
   document.body.appendChild(overlay);
+  hydrateSisterApps(overlay);
 
   await markAllRead();
   updateInboxBadge();
