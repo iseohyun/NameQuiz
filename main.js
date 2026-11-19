@@ -17,6 +17,7 @@ import {
   TRIVIA_COUNT_OPTIONS,
   buildRankingDomainKey
 } from './components/store.js';
+import { getTrailingStreak, showCombo } from './components/combo-fx.js';
 import { auth } from './components/firebase-config.js';
 import {
   DOMAINS,
@@ -775,7 +776,7 @@ async function terminateTriviaSetSession(isCompletedAll = false) {
 
   // 질문 모드는 도감 진도·학습 현황 통계(해금/숙련도/일일 학습시간)에 일체 영향을 주지 않음
   try {
-    if (isCompletedAll && savedMode === 'record' && reportSnapshot.totalCount > 0) {
+    if (isCompletedAll && savedMode === 'record' && reportSnapshot.totalCount > 0 && canSubmitRanking()) {
       const accuracy = Math.round((reportSnapshot.correctCount / reportSnapshot.totalCount) * 100);
       const { rankingDomain, playerName } = resolveRankingMetadata();
       await submitSpeedrunRanking(
@@ -796,6 +797,7 @@ async function terminateTriviaSetSession(isCompletedAll = false) {
       onRetry: () => window.startSessionWorkflow(savedMode)
     });
   }
+  if (isCompletedAll && savedMode === 'record' && !canSubmitRanking()) showGuestRankingNotice();
 }
 
 /* ==========================================================================
@@ -868,6 +870,7 @@ async function handleUserAnswer(selectedCharId, latency, clickedBtn) {
     speed: latency
   });
   updateHistoryBarUI();
+  if (isCorrect) showCombo(getTrailingStreak(sessionHistory));
 
   await handleAnswerFeedback(isCorrect, clickedBtn, target.charId);
 
@@ -917,6 +920,39 @@ function resolveRankingMetadata() {
   return { rankingDomain, playerName };
 }
 
+/* ---------- 순위는 로그인한 사용자만 (게스트도 학습·기록 모드는 그대로) ---------- */
+let guestStudyNoticeShown = false; // 학습 모드는 앱을 열 때마다 한 번만 안내
+
+function canSubmitRanking() {
+  return Boolean(auth.currentUser);
+}
+
+/** 게스트가 순위에 남을 기록을 냈을 때: 「로그인하면 순위에 올라가요」와 로그인 단추 */
+function showGuestRankingNotice() {
+  document.querySelector('.guest-rank-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'inbox-overlay guest-rank-overlay';
+  overlay.innerHTML = `
+    <div class="inbox-card" role="dialog" aria-label="순위 안내">
+      <div class="inbox-header">
+        <h4>🏆 순위 안내</h4>
+        <button type="button" class="inbox-close" aria-label="닫기">&times;</button>
+      </div>
+      <div class="guest-rank-body">
+        <p>게스트 기록은 리더보드에 올라가지 않아요. 로그인하면 다음 기록부터 순위에 올라갑니다.</p>
+        <button type="button" class="guest-rank-login">로그인</button>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay || e.target.closest('.inbox-close')) overlay.remove();
+    else if (e.target.closest('.guest-rank-login')) {
+      overlay.remove();
+      window.popupLogin();
+    }
+  });
+  document.body.appendChild(overlay);
+}
+
 async function terminateQuizSession() {
   stopAllSessionTimers();
   isTimeUp = false;
@@ -942,7 +978,12 @@ async function terminateQuizSession() {
     const correctCount = sessionHistory.filter((h) => h.isCorrect).length;
     const accuracy = sessionHistory.length > 0 ? Math.round((correctCount / sessionHistory.length) * 100) : 0;
     const { rankingDomain, playerName } = resolveRankingMetadata();
-    await submitStudyRanking(rankingDomain, correctCount, playedTime, accuracy, playerName);
+    if (canSubmitRanking()) {
+      await submitStudyRanking(rankingDomain, correctCount, playedTime, accuracy, playerName);
+    } else if (!guestStudyNoticeShown && sessionHistory.length > 0) {
+      guestStudyNoticeShown = true;
+      showGuestRankingNotice();
+    }
   } catch (dbError) {
     console.warn('[LocalFirst] 학습 세션 정산 안내:', dbError.message || dbError);
   }
@@ -1087,7 +1128,9 @@ async function terminateSpeedrunSession() {
     await updateDailyStudyTime(srElapsedTime, domain);
     updateReviewCountBadge();
 
-    if (isCompletedAll) {
+    if (isCompletedAll && !canSubmitRanking()) {
+      showGuestRankingNotice();
+    } else if (isCompletedAll) {
       const accuracy = Math.round((srCorrectCount / srTotalCount) * 100);
       const { rankingDomain, playerName } = resolveRankingMetadata();
       const recordId = await submitSpeedrunRanking(rankingDomain, srTotalCount, srElapsedTime, accuracy, playerName);

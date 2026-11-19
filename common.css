@@ -3138,3 +3138,93 @@ textarea,
   font-size: 0.72rem;
   color: #6366f1;
 }
+
+/* 게스트 순위 안내 (main.js showGuestRankingNotice) */
+.guest-rank-overlay {
+  z-index: 1400;
+}
+
+.guest-rank-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.guest-rank-body p {
+  margin: 0;
+}
+
+.guest-rank-login {
+  align-self: flex-end;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  background: #ec4899;
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* 학습 모드 연속 정답 Combo (components/combo-fx.js) */
+.combo-fx {
+  position: fixed;
+  left: 50%;
+  top: 42%;
+  z-index: 1200;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  pointer-events: none;
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+  font-weight: 900;
+  color: #ec4899;
+  text-shadow: 0 2px 0 #ffffff, 0 6px 18px rgba(236, 72, 153, 0.45);
+  transform: translate(-50%, -50%);
+  animation: comboPop 0.9s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+
+.combo-count {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.combo-word {
+  font-size: 1.4rem;
+  letter-spacing: 1px;
+}
+
+.combo-big {
+  color: #f59e0b;
+  text-shadow: 0 2px 0 #ffffff, 0 8px 24px rgba(245, 158, 11, 0.55);
+}
+
+.combo-big .combo-count {
+  font-size: 4.2rem;
+}
+
+.combo-spark {
+  font-size: 1.6rem;
+}
+
+@keyframes comboPop {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.4); }
+  25% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+  45% { transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; transform: translate(-50%, -65%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -80%) scale(0.95); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .combo-fx {
+    animation: comboFade 0.9s ease forwards;
+  }
+  @keyframes comboFade {
+    0%, 70% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+}
