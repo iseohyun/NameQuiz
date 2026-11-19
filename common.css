@@ -3098,3 +3098,43 @@ textarea,
   font-size: 1.1rem;
   color: #94a3b8;
 }
+
+/* 「앱 설치」 단추 (components/install-prompt.js) */
+.install-app-btn[hidden] {
+  display: none !important;
+}
+
+.install-app-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 24px);
+  margin: 10px 12px 0;
+  padding: 10px 12px;
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  background: #eef2ff;
+  color: #312e81;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.install-app-row .material-symbols-outlined {
+  font-size: 1.6rem;
+  color: #4f46e5;
+}
+
+.install-app-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.install-app-text strong {
+  font-size: 0.88rem;
+}
+
+.install-app-text small {
+  font-size: 0.72rem;
+  color: #6366f1;
+}

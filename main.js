@@ -5,6 +5,7 @@
  * 간격 반복 학습/기록/관전 모드, 질문 퀴즈 해설 리포트 모달 및 단축키 워크플로우를 총괄합니다.
  */
 
+import './components/install-prompt.js'; // 설치 신호(beforeinstallprompt)를 일찍 받아 둔다
 import {
   userConfig,
   resetUserConfig,
