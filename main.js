@@ -331,18 +331,37 @@ function applySavedConfig(savedConfig) {
   }
 }
 
+/**
+ * 로그인하면 이 기기에서 게스트로 학습한 캐릭터 기록을 계정에 바로 합친다(묻지 않음).
+ * 새 계정이든 이미 있는 계정이든 같고, 캐릭터마다 더 최근에 학습한 쪽을 남긴다.
+ */
 async function offerGuestProgressMerge() {
   const candidate = findGuestProgressToMerge();
   if (!candidate || candidate.items.length === 0) return;
 
-  const shouldMerge = confirm(
-    `이 기기에서 게스트로 학습한 캐릭터 기록이 ${candidate.items.length}개 있습니다.\n` +
-    `로그인한 계정으로 가져올까요?\n\n(계정 기록이 더 최신인 캐릭터는 그대로 유지됩니다)`
-  );
   markGuestMergeHandled(candidate.flagKey);
-  if (!shouldMerge) return;
-
   await mergeGuestProgress(candidate.items);
+  showGuestMergedNotice(candidate.items.length);
+}
+
+/** 게스트 기록을 합친 뒤 한 번 알려 준다 */
+function showGuestMergedNotice(count) {
+  const overlay = document.createElement('div');
+  overlay.className = 'inbox-overlay guest-rank-overlay';
+  overlay.innerHTML = `
+    <div class="inbox-card" role="dialog" aria-label="게스트 기록 합치기">
+      <div class="inbox-header">
+        <h4>✅ 게스트 기록을 합쳤어요</h4>
+        <button type="button" class="inbox-close" aria-label="닫기">&times;</button>
+      </div>
+      <div class="guest-rank-body">
+        <p>이 기기에서 게스트로 학습한 <b>${count}개 캐릭터</b>의 진도를 로그인한 계정에 합쳤습니다. 계정에 더 최근 기록이 있는 캐릭터는 계정 기록을 그대로 두었습니다.</p>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay || e.target.closest('.inbox-close')) overlay.remove();
+  });
+  document.body.appendChild(overlay);
 }
 
 function updateHeaderAuthUI(user) {
@@ -921,7 +940,6 @@ function resolveRankingMetadata() {
 }
 
 /* ---------- 순위는 로그인한 사용자만 (게스트도 학습·기록 모드는 그대로) ---------- */
-let guestStudyNoticeShown = false; // 학습 모드는 앱을 열 때마다 한 번만 안내
 
 function canSubmitRanking() {
   return Boolean(auth.currentUser);
@@ -935,11 +953,11 @@ function showGuestRankingNotice() {
   overlay.innerHTML = `
     <div class="inbox-card" role="dialog" aria-label="순위 안내">
       <div class="inbox-header">
-        <h4>🏆 순위 안내</h4>
+        <h4>🔐 로그인하고 기록 지키기</h4>
         <button type="button" class="inbox-close" aria-label="닫기">&times;</button>
       </div>
       <div class="guest-rank-body">
-        <p>게스트 기록은 리더보드에 올라가지 않아요. 로그인하면 다음 기록부터 순위에 올라갑니다.</p>
+        <p>로그인하면 지금까지 게스트로 학습한 기록이 계정에 합쳐져 다른 기기에서도 이어서 할 수 있고, 다음 기록부터 리더보드에도 올라갑니다.</p>
         <button type="button" class="guest-rank-login">로그인</button>
       </div>
     </div>`;
@@ -980,8 +998,8 @@ async function terminateQuizSession() {
     const { rankingDomain, playerName } = resolveRankingMetadata();
     if (canSubmitRanking()) {
       await submitStudyRanking(rankingDomain, correctCount, playedTime, accuracy, playerName);
-    } else if (!guestStudyNoticeShown && sessionHistory.length > 0) {
-      guestStudyNoticeShown = true;
+    } else if (sessionHistory.length > 0) {
+      // 게스트가 학습을 마칠 때마다 로그인을 권한다(로그인하면 지금까지의 기록이 계정에 합쳐짐)
       showGuestRankingNotice();
     }
   } catch (dbError) {
