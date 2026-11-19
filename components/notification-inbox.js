@@ -9,6 +9,7 @@
  */
 
 import { escapeHtml } from './character-data.js';
+import { renderSisterAppsHtml } from './sister-apps.js';
 
 const DB_NAME = 'namequiz-inbox';
 const STORE = 'items';
@@ -139,6 +140,7 @@ export async function openInboxModal({ onStartStudy } = {}) {
         <h4>🔔 알림함</h4>
         <button type="button" class="inbox-close" aria-label="닫기">&times;</button>
       </div>
+      ${renderSisterAppsHtml()}
       <ul class="inbox-list">${rows || '<li class="inbox-empty">받은 알림이 없어요. 학습을 마치면 복습할 때를 알려 드려요.</li>'}</ul>
       <div class="inbox-actions">
         ${items.length ? '<button type="button" class="inbox-clear">모두 지우기</button>' : ''}

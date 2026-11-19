@@ -3030,3 +3030,71 @@ textarea,
   padding: 7px 14px;
   font-size: inherit;
 }
+
+/* 알림함 맨 위 QuizQuiz 자매품 링크 (components/sister-apps.js) */
+.sister-apps {
+  padding: 10px 12px 4px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.sister-apps-title {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.sister-apps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 6px;
+}
+
+.sister-app {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.sister-app:hover {
+  background: #f8fafc;
+}
+
+.sister-app img {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+
+.sister-app-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.sister-app-text strong {
+  font-size: 0.88rem;
+}
+
+.sister-app-text small {
+  font-size: 0.72rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sister-app .material-symbols-outlined {
+  font-size: 1.1rem;
+  color: #94a3b8;
+}

@@ -21,6 +21,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
 import { DOMAINS, getCharacters } from './character-data.js';
 import { toLocalDateKey, getRecentLocalDateKeys } from './date-utils.js';
+import { claimLegacyData } from './legacy-migration.js';
 
 const GUEST_ID_KEY = 'NAMEQUIZ_GUEST_ID';
 const WEEKLY_STATS_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -101,6 +102,8 @@ const _loadLocalProgressCache = () => {
 
 export const initUser = async (uid) => {
   currentUserUid = uid || _getOrCreateGuestId();
+  // 이전 프로젝트(kana-loop)에서 옮겨 둔 기록이 있으면 먼저 이어 받는다
+  if (uid) await claimLegacyData();
   await refreshProgressCache();
 };
 
@@ -458,7 +461,7 @@ export const submitSpeedrunRanking = async (rankingDomain, charCount, elapsedTim
 
   const displayName = customName || document.getElementById('profile-name')?.innerText || '게스트';
   const docId = `${currentUserUid}_${rankingDomain}_${Date.now()}`;
-  const docRef = doc(db, 'speedrun_rankings', docId);
+  const docRef = doc(db, 'namequiz_speedrun_rankings', docId);
 
   try {
     await setDoc(docRef, {
@@ -478,7 +481,7 @@ export const submitSpeedrunRanking = async (rankingDomain, charCount, elapsedTim
 };
 
 export const getGlobalRankings = async (limitCount = 10, targetFilter = 'all_sanrio') => {
-  const rankingsRef = collection(db, 'speedrun_rankings');
+  const rankingsRef = collection(db, 'namequiz_speedrun_rankings');
   const domainsToFetch = resolveLeaderboardQueryDomains(targetFilter);
 
   try {
@@ -505,7 +508,7 @@ export const submitStudyRanking = async (rankingDomain, correctCount, elapsedTim
 
   const displayName = customName || document.getElementById('profile-name')?.innerText || '게스트';
   const docId = `${currentUserUid}_${rankingDomain}`;
-  const docRef = doc(db, 'study_rankings', docId);
+  const docRef = doc(db, 'namequiz_study_rankings', docId);
 
   try {
     const docSnap = await getDoc(docRef);
@@ -542,7 +545,7 @@ export const submitStudyRanking = async (rankingDomain, correctCount, elapsedTim
 };
 
 export const getStudyRankings = async (limitCount = 10, targetFilter = 'all_sanrio') => {
-  const rankingsRef = collection(db, 'study_rankings');
+  const rankingsRef = collection(db, 'namequiz_study_rankings');
   const domainsToFetch = resolveLeaderboardQueryDomains(targetFilter);
 
   try {

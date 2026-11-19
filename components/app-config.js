@@ -11,9 +11,9 @@ export const APP_BASE_URL = new URL('./', window.location.href).href;
 
 /** Cloud Run(Cloud Functions 2세대) OAuth 토큰 교환 엔드포인트 */
 export const ENDPOINTS = Object.freeze({
-  naverLogin: 'https://naverlogin-kw55rtsoba-uc.a.run.app',
-  kakaoLogin: 'https://kakaologin-kw55rtsoba-uc.a.run.app',
-  scheduleNotification: 'https://schedulenotification-kw55rtsoba-uc.a.run.app'
+  naverLogin: 'https://us-central1-quizquiz-quiz.cloudfunctions.net/naverLogin',
+  kakaoLogin: 'https://us-central1-quizquiz-quiz.cloudfunctions.net/kakaoLogin',
+  scheduleNotification: 'https://us-central1-quizquiz-quiz.cloudfunctions.net/scheduleNotification'
 });
 
 /** 소셜 로그인 OAuth 클라이언트 ID (Kakao: REST API 키, Naver: Client ID) */
@@ -23,4 +23,4 @@ export const OAUTH_CLIENT_IDS = Object.freeze({
 });
 
 /** Firebase Cloud Messaging 웹 푸시 VAPID 공개키 (CharQuiz 와 같은 프로젝트의 키) */
-export const FCM_VAPID_KEY = 'BCsz-FURaLXuyEgWJ5opmzZ2bk8oBACk7pGXouwVF71PlrK-XA-z95QuGNBPqHCi9ppaUD66UGQ79bf2ozcqjpg';
+export const FCM_VAPID_KEY = 'BDUcL6Aw4CabxKC_VcVbozaK68BPD4Ogkoyf5it5rg6DF7UE-JUKE9tQKOF5Mp3Gr3Ke9exJzP1E6DuVSGUynMc';

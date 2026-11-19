@@ -9,7 +9,7 @@
  *  - name_hint_likes/{hintId}__{rev}__{uid} 따봉 한 개
  *      { hintId, rev, uid, charKey, createdAt }
  *  rev 는 힌트를 새로 만들 때마다 바뀐다. 지웠다가 다시 올린 힌트에는 예전 따봉이 이어지지 않는다.
- *  규칙은 CharQuiz/firestore.rules 의 name_hints, name_hint_likes 에 있다.
+ *  규칙은 firestore.rules 의 name_hints, name_hint_likes 에 있다.
  */
 
 import { db, auth } from './firebase-config.js';

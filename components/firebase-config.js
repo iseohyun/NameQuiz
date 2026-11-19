@@ -2,8 +2,8 @@
  * @file components/firebase-config.js
  * @description Firebase App, Auth, Firestore, Cloud Messaging 인스턴스 초기화 모듈
  *
- * appId 는 CharQuiz 와 다른 「NameQuiz」 웹 앱의 것을 쓴다. 두 앱은 같은 도메인에 있어서, appId 가 같으면
- * Firebase 메시징이 토큰 저장소를 함께 쓰다가 서로의 알림 토큰을 지운다.
+ * 퀴즈 앱 공용 Firebase 프로젝트(quizquiz-quiz)의 「NameQuiz」 웹 앱. appId 는 CharQuiz 와 다른 것을 쓴다.
+ * 두 앱은 같은 도메인에 있어서, appId 가 같으면 Firebase 메시징이 토큰 저장소를 함께 쓰다가 서로의 알림 토큰을 지운다.
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
@@ -12,13 +12,12 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-auth
 import { getMessaging } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-messaging.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAm1BiqPabnh0X-FLxctRUAoRWbd9OrdlI",
-  authDomain: "kana-loop.firebaseapp.com",
-  projectId: "kana-loop",
-  storageBucket: "kana-loop.firebasestorage.app",
-  messagingSenderId: "566732000404",
-  appId: "1:566732000404:web:213177f4c7f6035ebd3881",
-  measurementId: "G-SMS2R6V76L"
+  apiKey: "AIzaSyAfMHh3VuyqT6YJ5gK7rNGuHzEgWR8Fsuc",
+  authDomain: "quizquiz-quiz.firebaseapp.com",
+  projectId: "quizquiz-quiz",
+  storageBucket: "quizquiz-quiz.firebasestorage.app",
+  messagingSenderId: "47580752278",
+  appId: "1:47580752278:web:5512a584a3e83b651615b7"
 };
 
 const app = initializeApp(firebaseConfig);
