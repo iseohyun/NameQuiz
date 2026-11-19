@@ -24,12 +24,10 @@ import { toLocalDateKey, getRecentLocalDateKeys } from './date-utils.js';
 import { claimLegacyData } from './legacy-migration.js';
 
 const GUEST_ID_KEY = 'NAMEQUIZ_GUEST_ID';
-const WEEKLY_STATS_CACHE_TTL_MS = 10 * 60 * 1000;
 
 let currentUserUid = null;
 let progressCache = {};
 let progressMeta = {};
-let weeklyServerStatsCache = { uid: null, fetchedAt: 0, byDay: {} };
 
 const PERSISTED_PROGRESS_FIELDS = [
   'domain', 'charId', 'stage', 'recentLatencies', 'latenciesIdx',
@@ -387,55 +385,7 @@ export const getUserConfig = async () => {
   return null;
 };
 
-const _fetchServerWeeklyStats = async (dayKeys) => {
-  const isCacheValid = weeklyServerStatsCache.uid === currentUserUid &&
-    (Date.now() - weeklyServerStatsCache.fetchedAt) < WEEKLY_STATS_CACHE_TTL_MS;
-  if (isCacheValid) return weeklyServerStatsCache.byDay;
 
-  const byDay = {};
-  try {
-    const statsRef = collection(db, 'users', currentUserUid, 'study_stats');
-    const q = query(
-      statsRef,
-      where(documentId(), '>=', dayKeys[0]),
-      where(documentId(), '<=', dayKeys[dayKeys.length - 1])
-    );
-    const snapshot = await getDocs(q);
-    snapshot.forEach((docSnap) => {
-      byDay[docSnap.id] = docSnap.data();
-    });
-    weeklyServerStatsCache = { uid: currentUserUid, fetchedAt: Date.now(), byDay };
-  } catch (err) {
-    console.warn('[LocalFirst] 주간 학습통계 서버 조회 생략:', err.message);
-  }
-  return byDay;
-};
-
-export const getWeeklyStats = async (domain = 'sanrio') => {
-  if (!currentUserUid || !domain) return { total: 0, history: {} };
-
-  const stats = { total: 0, history: {} };
-  const days = getRecentLocalDateKeys(7);
-
-  let localStats = {};
-  try {
-    const rawStats = localStorage.getItem(`NAMEQUIZ_STUDY_STATS_${currentUserUid}`);
-    localStats = rawStats ? JSON.parse(rawStats) : {};
-  } catch (e) {
-    console.warn('[LocalFirst] 주간 학습통계 로컬 계산 실패:', e);
-  }
-
-  const serverStats = await _fetchServerWeeklyStats(days);
-  days.forEach((dayStr) => {
-    const localSeconds = (localStats[dayStr] && localStats[dayStr][domain]) || 0;
-    const serverSeconds = (serverStats[dayStr] && serverStats[dayStr][domain]) || 0;
-    const seconds = Math.max(localSeconds, serverSeconds);
-    stats.history[dayStr] = seconds;
-    stats.total += seconds;
-  });
-
-  return stats;
-};
 
 function formatRankingDoc(docSnap) {
   const data = docSnap.data();
@@ -638,4 +588,219 @@ export const mergeGuestProgress = async (items) => {
   }
 
   return items.length;
+};
+
+/* ==========================================================================
+   콤보 기록 (학습 모드)
+   - 날마다 최대 콤보: users/{uid}/study_stats/{날짜}.namequizMaxCombo (그날 가장 길게 이어진 정답 수)
+   - 역대 최대 콤보: users/{uid}.namequizCombo = { current, best, bestAt }
+     current 는 학습 판·날짜가 바뀌어도 이어지는 연속 정답 수(틀리면 0), best 는 그 최댓값.
+   - 로컬 우선: NAMEQUIZ_COMBO_{uid} 에 { current, best, bestAt, daily: {날짜: 최대} } 를 먼저 적는다.
+   ========================================================================== */
+const comboStorageKey = () => `NAMEQUIZ_COMBO_${currentUserUid}`;
+
+function readLocalCombo() {
+  try {
+    return JSON.parse(localStorage.getItem(comboStorageKey()) || 'null') || { current: 0, best: 0, bestAt: null, daily: {} };
+  } catch {
+    return { current: 0, best: 0, bestAt: null, daily: {} };
+  }
+}
+
+function writeLocalCombo(value) {
+  try {
+    localStorage.setItem(comboStorageKey(), JSON.stringify(value));
+  } catch {
+    /* 무시 */
+  }
+}
+
+/**
+ * 이어지는 콤보 상태(역대 최대 포함). 서버와 로컬 중 큰 best 를 쓰고, current 는 더 최근에 적힌 쪽을 쓴다.
+ * @returns {Promise<{current: number, best: number, bestAt: string|null}>}
+ */
+export const loadComboState = async () => {
+  if (!currentUserUid) return { current: 0, best: 0, bestAt: null };
+  const local = readLocalCombo();
+  let server = null;
+  try {
+    const snap = await getDoc(doc(db, 'users', currentUserUid));
+    server = snap.exists() ? snap.data().namequizCombo || null : null;
+  } catch (err) {
+    console.warn('[Combo] 서버 콤보 기록을 읽지 못했습니다:', err.message);
+  }
+  if (!server) return { current: local.current || 0, best: local.best || 0, bestAt: local.bestAt || null };
+  const useServerCurrent = (server.updatedAt || 0) > (local.updatedAt || 0);
+  const bestFromServer = (server.best || 0) >= (local.best || 0);
+  return {
+    current: useServerCurrent ? server.current || 0 : local.current || 0,
+    best: Math.max(server.best || 0, local.best || 0),
+    bestAt: bestFromServer ? server.bestAt || null : local.bestAt || null
+  };
+};
+
+/**
+ * 학습 한 판이 끝났을 때 콤보 기록을 남긴다.
+ * @param {number} sessionMaxCombo 이번 판에서 가장 길게 이어진 정답 수
+ * @param {{current: number, best: number, bestAt: string|null}} state 이어지는 콤보 상태
+ */
+export const saveComboStats = async (sessionMaxCombo, state) => {
+  if (!currentUserUid) return;
+  const today = toLocalDateKey();
+  const now = Date.now();
+  const local = readLocalCombo();
+  local.daily = local.daily || {};
+  local.daily[today] = Math.max(local.daily[today] || 0, sessionMaxCombo);
+  Object.assign(local, { current: state.current, best: state.best, bestAt: state.bestAt, updatedAt: now });
+  writeLocalCombo(local);
+
+  try {
+    await setDoc(doc(db, 'users', currentUserUid), {
+      namequizCombo: { current: state.current, best: state.best, bestAt: state.bestAt, updatedAt: now }
+    }, { merge: true });
+    if (sessionMaxCombo > 0) {
+      const statsRef = doc(db, 'users', currentUserUid, 'study_stats', today);
+      const snap = await getDoc(statsRef);
+      const prev = snap.exists() ? Number(snap.data().namequizMaxCombo) || 0 : 0;
+      if (sessionMaxCombo > prev) await setDoc(statsRef, { namequizMaxCombo: sessionMaxCombo, lastUpdated: now }, { merge: true });
+    }
+  } catch (err) {
+    console.warn('[Combo] 콤보 기록 서버 저장 생략(로컬 보존):', err.message);
+  }
+};
+
+/**
+ * 기간별 최대 콤보.
+ * @param {'week'|'month'|'year'} range 주 = 최근 7일, 월 = 최근 30일(날마다), 년 = 최근 12달(달마다 최대)
+ * @returns {Promise<Array<{key: string, label: string, value: number}>>}
+ */
+export const getComboHistory = async (range = 'week') => {
+  if (!currentUserUid) return [];
+  const dayCount = range === 'year' ? 366 : range === 'month' ? 30 : 7;
+  const days = getRecentLocalDateKeys(dayCount);
+  const daily = { ...(readLocalCombo().daily || {}) };
+
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'users', currentUserUid, 'study_stats'),
+      where(documentId(), '>=', days[0])
+    ));
+    snap.forEach((d) => {
+      const v = Number(d.data().namequizMaxCombo) || 0;
+      if (v > (daily[d.id] || 0)) daily[d.id] = v;
+    });
+  } catch (err) {
+    console.warn('[Combo] 서버 콤보 이력을 읽지 못했습니다(로컬 값만 사용):', err.message);
+  }
+
+  if (range !== 'year') {
+    return days.map((key) => ({ key, label: key.slice(5).replace('-', '/'), value: daily[key] || 0 }));
+  }
+  const months = [];
+  const now = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return months.map((key) => ({
+    key,
+    label: `${Number(key.slice(5))}월`,
+    value: Math.max(0, ...Object.entries(daily).filter(([d]) => d.startsWith(key)).map(([, v]) => v))
+  }));
+};
+
+/**
+ * 이 기기에서 게스트로 쌓은 콤보 기록을 로그인한 계정에 합친다. 역대 최대와 날마다 최대는 큰 쪽을 남긴다.
+ * 이어지는 콤보(current)는 계정 쪽을 그대로 둔다.
+ * @returns {Promise<boolean>} 합친 것이 있으면 true
+ */
+export const mergeGuestCombo = async () => {
+  const guestId = getStoredGuestId();
+  if (!guestId || !currentUserUid || currentUserUid === guestId) return false;
+  let guest;
+  try {
+    guest = JSON.parse(localStorage.getItem(`NAMEQUIZ_COMBO_${guestId}`) || 'null');
+  } catch {
+    guest = null;
+  }
+  if (!guest || !(guest.best > 0)) return false;
+
+  const account = await loadComboState();
+  const local = readLocalCombo();
+  local.daily = local.daily || {};
+  const raisedDays = [];
+  Object.entries(guest.daily || {}).forEach(([day, value]) => {
+    if (value > (local.daily[day] || 0)) {
+      local.daily[day] = value;
+      raisedDays.push([day, value]);
+    }
+  });
+  const bestFromGuest = guest.best > (account.best || 0);
+  if (!bestFromGuest && raisedDays.length === 0) return false;
+  const state = {
+    current: account.current || 0,
+    best: bestFromGuest ? guest.best : account.best || 0,
+    bestAt: bestFromGuest ? guest.bestAt : account.bestAt || null
+  };
+  Object.assign(local, state, { updatedAt: Date.now() });
+  writeLocalCombo(local);
+
+  try {
+    await setDoc(doc(db, 'users', currentUserUid), { namequizCombo: { ...state, updatedAt: Date.now() } }, { merge: true });
+    await Promise.all(raisedDays.map(async ([day, value]) => {
+      const ref = doc(db, 'users', currentUserUid, 'study_stats', day);
+      const snap = await getDoc(ref);
+      if (value > (snap.exists() ? Number(snap.data().namequizMaxCombo) || 0 : 0)) {
+        await setDoc(ref, { namequizMaxCombo: value, lastUpdated: Date.now() }, { merge: true });
+      }
+    }));
+  } catch (err) {
+    console.warn('[GuestMerge] 콤보 기록 서버 저장 생략(로컬 반영):', err.message);
+  }
+  return true;
+};
+
+/**
+ * 기록 모드 「30초 타임어택」 기록 한 건. 기록마다 새 문서(namequiz_timeattack_rankings, 로그인한 본인만).
+ * @returns {Promise<string|null>} 문서 ID
+ */
+export const submitTimeAttackRanking = async (rankingDomain, correctCount, solvedCount, accuracy, customName = null) => {
+  if (!currentUserUid) return null;
+  const displayName = customName || document.getElementById('profile-name')?.innerText || '게스트';
+  const docId = `${currentUserUid}_${rankingDomain}_${Date.now()}`;
+  try {
+    await setDoc(doc(db, 'namequiz_timeattack_rankings', docId), {
+      uid: currentUserUid,
+      name: displayName,
+      domain: rankingDomain,
+      correctCount,
+      solvedCount,
+      accuracy,
+      durationSec: 30,
+      updatedAt: Date.now()
+    });
+    return docId;
+  } catch (err) {
+    console.warn('[Leaderboard] 30초 타임어택 기록 등록 생략:', err.message);
+    return null;
+  }
+};
+
+/**
+ * 30초 타임어택 순위. 맞힌 수가 많은 순, 같으면 정답률 순. 복합 인덱스 없이 맞힌 수 순으로 넉넉히 읽고 도메인은 화면에서 거른다.
+ */
+export const getTimeAttackRankings = async (limitCount = 10, targetFilter = 'all_sanrio') => {
+  const domains = new Set(resolveLeaderboardQueryDomains(targetFilter));
+  try {
+    const snap = await getDocs(query(collection(db, 'namequiz_timeattack_rankings'), orderBy('correctCount', 'desc'), limit(300)));
+    return snap.docs
+      .map(formatRankingDoc)
+      .filter((r) => domains.has(r.domain))
+      .sort((a, b) => (b.correctCount - a.correctCount) || (b.accuracy - a.accuracy) || (a.rawUpdatedAt - b.rawUpdatedAt))
+      .slice(0, limitCount)
+      .map((r) => ({ ...r, elapsedStr: '00:30' }));
+  } catch (error) {
+    console.error('[Leaderboard] 30초 타임어택 순위 조회 실패:', error);
+    return [];
+  }
 };

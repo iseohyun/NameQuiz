@@ -6,8 +6,7 @@
 import { getAllProgress } from './db-handler.js';
 import { INTERVALS } from './engine.js';
 import { userConfig } from './store.js';
-import { getRecentLocalDateKeys } from './date-utils.js';
-import { renderHintSection } from './hint-handler.js';
+import { renderHintSection, openHintListModal } from './hint-handler.js';
 import {
   TEENIEPING_SEASONS,
   getCharacters,
@@ -18,27 +17,34 @@ import {
 
 let analysisMode = 'default';
 
-export function renderStudyStatsChart(stats) {
-  const container = document.getElementById('study-chart-container');
-  const totalDisplay = document.getElementById('total-study-time');
+/**
+ * 학습현황 맨 위 「최대 콤보」 막대그래프와 역대 최대 콤보.
+ * @param {Array<{key: string, label: string, value: number}>} entries 기간의 칸들(주·월은 날, 년은 달)
+ * @param {{best: number, bestAt: string|null}} allTime 역대 최대 콤보(판·날짜가 바뀌어도 이어지는 연속 정답)
+ */
+export function renderComboChart(entries, allTime) {
+  const container = document.getElementById('combo-chart');
+  const bestEl = document.getElementById('combo-all-time');
+  if (bestEl) {
+    bestEl.textContent = allTime?.best
+      ? `${allTime.best}콤보${allTime.bestAt ? ` · ${allTime.bestAt}` : ''}`
+      : '아직 없음';
+  }
   if (!container) return;
 
-  const totalMinRounded = Math.round((stats?.total || 0) / 60);
-  if (totalDisplay) totalDisplay.innerText = `${totalMinRounded}분`;
-
-  const days = getRecentLocalDateKeys(7);
-  const maxSec = Math.max(...days.map((d) => stats?.history?.[d] || 0), 1);
-
-  container.innerHTML = days.map((day) => {
-    const sec = stats?.history?.[day] || 0;
-    const height = (sec / maxSec) * 100;
-    const label = day.slice(5);
+  const maxValue = Math.max(...entries.map((e) => e.value), 1);
+  const dense = entries.length > 12;
+  container.classList.toggle('dense', dense);
+  container.innerHTML = entries.map((e, i) => {
+    const height = (e.value / maxValue) * 100;
+    // 한 달 보기는 칸이 많으므로 날짜 글씨를 5일마다만 쓴다
+    const showLabel = !dense || i % 5 === 0 || i === entries.length - 1;
     return `
-      <div class="study-bar-col">
-        <div class="study-bar-fill" title="${Math.round(sec / 60)}분 (${sec}초)" style="height:${height}%;"></div>
-        <div class="study-bar-label">${label}</div>
-      </div>
-    `;
+      <div class="combo-bar-col" title="${escapeHtml(e.key)}: ${e.value}콤보">
+        <span class="combo-bar-value">${e.value && !dense ? e.value : ''}</span>
+        <div class="combo-bar" style="height:${height}%;"></div>
+        <span class="combo-bar-label">${showLabel ? escapeHtml(e.label) : ''}</span>
+      </div>`;
   }).join('');
 }
 
@@ -251,6 +257,39 @@ export function renderSeasonTabsInModal(domain = 'sanrio', activeSeason = 'all',
 /**
  * 산리오(8열 그리드) 및 티니핑(7열 반응형 그리드) 도감 카드 목록 렌더링
  */
+const LONG_PRESS_MS = 550;
+const LONG_PRESS_MOVE_PX = 10;
+
+/**
+ * 길게 누르기. 손을 떼기 전에 LONG_PRESS_MS 가 지나면 onLongPress 를 부르고,
+ * 뒤따르는 click 은 el.dataset.longPressed 로 한 번 무시하게 한다.
+ */
+function bindLongPress(el, onLongPress) {
+  let timer = null;
+  let startX = 0;
+  let startY = 0;
+  const cancel = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+  };
+  el.addEventListener('pointerdown', (e) => {
+    startX = e.clientX;
+    startY = e.clientY;
+    el.dataset.longPressed = '';
+    cancel();
+    timer = setTimeout(() => {
+      timer = null;
+      el.dataset.longPressed = '1';
+      onLongPress();
+    }, LONG_PRESS_MS);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (Math.abs(e.clientX - startX) > LONG_PRESS_MOVE_PX || Math.abs(e.clientY - startY) > LONG_PRESS_MOVE_PX) cancel();
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) => el.addEventListener(type, cancel));
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
 export function renderProgressTable(domain = 'sanrio', domainProgress = {}, seasonFilter = 'all') {
   const gridContainer = document.getElementById('progress-grid');
   const countLabel = document.getElementById('settings-active-count');
@@ -317,7 +356,15 @@ export function renderProgressTable(domain = 'sanrio', domainProgress = {}, seas
     }
 
     card.title = `${meta.koName}${meta.season ? ` (${meta.season})` : ''} — 클릭하여 상세 프로필 및 해금/초기화`;
-    card.onclick = () => openCharacterDetailModal(meta.charId, domain);
+    // 짧게 누르면 상세 프로필, 길게 누르면 그 캐릭터의 힌트 목록 (QuizApp Common GUI 「학습현황」)
+    bindLongPress(card, () => openHintListModal(domain, meta.koName));
+    card.onclick = () => {
+      if (card.dataset.longPressed === '1') {
+        card.dataset.longPressed = '';
+        return;
+      }
+      openCharacterDetailModal(meta.charId, domain);
+    };
     gridContainer.appendChild(card);
   });
 
@@ -457,17 +504,22 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
   const listContainer = document.getElementById('leaderboard-list');
   if (!listContainer) return;
 
-  const btnSpeedrun = document.getElementById('tab-speedrun');
-  const btnStudy = document.getElementById('tab-study');
-  if (btnSpeedrun && btnStudy) {
-    btnSpeedrun.classList.toggle('active', mode !== 'study');
-    btnStudy.classList.toggle('active', mode === 'study');
-  }
-  document.getElementById('tab-hints')?.classList.remove('active');
+  ['speedrun', 'timeattack', 'study', 'hints'].forEach((tabMode) => {
+    document.getElementById(`tab-${tabMode}`)?.classList.toggle('active', tabMode === mode);
+  });
 
   const headerContainer = document.getElementById('leaderboard-header');
   if (headerContainer) {
-    headerContainer.innerHTML = mode === 'study'
+    headerContainer.innerHTML = mode === 'timeattack'
+      ? `<tr>
+           <th>순위</th>
+           <th>아이디</th>
+           <th>도메인 / 유형</th>
+           <th>맞힘 (푼 수)</th>
+           <th>정답률</th>
+           <th>완료 시각</th>
+         </tr>`
+      : mode === 'study'
       ? `<tr>
            <th>순위</th>
            <th>아이디</th>
@@ -509,6 +561,19 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
     const safeElapsed = escapeHtml(entry.elapsedStr || '-');
     const safeUpdatedAt = escapeHtml(entry.updatedAt || '');
     const highlightClass = (window.highlightRecordId && window.highlightRecordId === entry.id) ? 'highlight-row' : '';
+
+    if (mode === 'timeattack') {
+      return `
+        <tr class="${highlightClass}">
+          <td class="${rankClass}">${rank}</td>
+          <td class="lb-name">${safeName}</td>
+          <td>${domainDisplay}</td>
+          <td class="lb-correct">${Number(entry.correctCount) || 0} <small>(${Number(entry.solvedCount) || 0})</small></td>
+          <td>${Number(entry.accuracy) || 0}%</td>
+          <td class="lb-date">${safeUpdatedAt}</td>
+        </tr>
+      `;
+    }
 
     if (mode === 'study') {
       return `

@@ -9,7 +9,6 @@
  */
 
 import { escapeHtml } from './character-data.js';
-import { renderSisterAppsHtml, hydrateSisterApps } from './sister-apps.js';
 import { renderInstallRowHtml } from './install-prompt.js';
 
 const DB_NAME = 'namequiz-inbox';
@@ -99,11 +98,15 @@ async function clearInbox() {
 
 /** 헤더 종 아이콘의 읽지 않은 수 배지를 고친다. */
 export async function updateInboxBadge() {
-  const badge = document.getElementById('inbox-unread-badge');
-  if (!badge) return;
   const unread = (await listInboxItems()).filter((it) => !it.read).length;
-  badge.textContent = unread > 9 ? '9+' : String(unread);
-  badge.style.display = unread > 0 ? 'flex' : 'none';
+  // 설정 화면 도구 줄의 알림함 아이콘 등 .inbox-unread-badge 모두에 적는다
+  document.querySelectorAll('.inbox-unread-badge').forEach((badge) => {
+    badge.textContent = unread > 99 ? '99+' : String(unread);
+    badge.hidden = unread === 0;
+  });
+  // 헤더 설정 톱니의 new 점(new-dot.js)이 듣는다
+  window.dispatchEvent(new CustomEvent('namequiz-inbox-changed', { detail: { unread } }));
+  return unread;
 }
 
 function formatReceivedAt(ms) {
@@ -142,7 +145,6 @@ export async function openInboxModal({ onStartStudy } = {}) {
         <button type="button" class="inbox-close" aria-label="닫기">&times;</button>
       </div>
       ${renderInstallRowHtml()}
-      ${renderSisterAppsHtml()}
       <ul class="inbox-list">${rows || '<li class="inbox-empty">받은 알림이 없어요. 학습을 마치면 복습할 때를 알려 드려요.</li>'}</ul>
       <div class="inbox-actions">
         ${items.length ? '<button type="button" class="inbox-clear">모두 지우기</button>' : ''}
@@ -165,7 +167,6 @@ export async function openInboxModal({ onStartStudy } = {}) {
     }
   });
   document.body.appendChild(overlay);
-  hydrateSisterApps(overlay);
 
   await markAllRead();
   updateInboxBadge();

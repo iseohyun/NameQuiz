@@ -24,7 +24,7 @@
   --text-main: #1e293b;
   --text-muted: #64748b;
 
-  --study-shadow: 0 12px 28px rgba(236, 72, 153, 0.25);
+  --study-shadow: 0 12px 28px rgba(var(--accent-rgb), 0.25);
   --record-shadow: 0 12px 28px rgba(249, 115, 22, 0.25);
   --spectator-shadow: 0 12px 28px rgba(124, 58, 237, 0.25);
 
@@ -167,7 +167,7 @@ body {
   font-size: 0.74rem;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   color: #ffffff;
   border-radius: var(--radius-md);
   display: flex;
@@ -179,7 +179,7 @@ body {
 }
 
 .domain-btn.teenieping {
-  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  background: linear-gradient(135deg, #a855f7 0%, var(--accent) 100%);
   box-shadow: 0 4px 10px rgba(168, 85, 247, 0.3);
 }
 
@@ -267,7 +267,7 @@ body {
 }
 
 .mode-study {
-  background: linear-gradient(var(--gradient-angle), #ec4899 0%, #0d9488 100%);
+  background: linear-gradient(var(--gradient-angle), var(--accent) 0%, #0d9488 100%);
   box-shadow: var(--study-shadow);
   animation: rotateGradientAngle 10s linear infinite;
 }
@@ -445,9 +445,9 @@ body {
   font-weight: 700;
   padding: 3px 9px;
   border-radius: var(--radius-full);
-  background: #fdf2f8;
-  color: #db2777;
-  border: 1px solid #fbcfe8;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border: 1px solid var(--accent-border);
 }
 
 .info-pill.blue {
@@ -545,9 +545,9 @@ body {
 }
 
 .mode-badge.study {
-  background: linear-gradient(var(--gradient-angle), #fce7f3, #e0f2fe);
-  color: #be185d;
-  border: 1px solid rgba(244, 114, 182, 0.4);
+  background: linear-gradient(var(--gradient-angle), var(--accent-softer), #e0f2fe);
+  color: var(--accent-dark);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
   animation: rotateGradientAngle 10s linear infinite;
 }
 
@@ -609,7 +609,7 @@ body {
   height: 100%;
   width: 0%;
   border-radius: var(--radius-full);
-  background: linear-gradient(90deg, #ec4899, #6366f1);
+  background: linear-gradient(90deg, var(--accent), #6366f1);
   transition: width 1s linear;
 }
 
@@ -777,9 +777,9 @@ body {
   font-weight: 700;
   padding: 3px 9px;
   border-radius: var(--radius-full);
-  background: #fdf2f8;
-  color: #db2777;
-  border: 1px solid #fbcfe8;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border: 1px solid var(--accent-border);
 }
 
 .question-prompt-card.prompt-name-mode .question-type-chip {
@@ -938,11 +938,11 @@ body {
 }
 
 .option-btn:hover {
-  background: #fdf2f8;
-  border-color: #ec4899;
-  color: #db2777;
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-strong);
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(236, 72, 153, 0.15), 0 2px 0 #ec4899;
+  box-shadow: 0 8px 16px rgba(var(--accent-rgb), 0.15), 0 2px 0 var(--accent);
 }
 
 .option-btn:active {
@@ -1248,7 +1248,7 @@ body {
 }
 
 .stats-panel-sub strong {
-  color: #ec4899;
+  color: var(--accent);
 }
 
 .study-chart-container {
@@ -1271,7 +1271,7 @@ body {
 .study-bar-fill {
   width: 100%;
   max-width: 28px;
-  background: linear-gradient(180deg, #ec4899, #6366f1);
+  background: linear-gradient(180deg, var(--accent), #6366f1);
   border-radius: 4px 4px 0 0;
   min-height: 2px;
 }
@@ -1389,12 +1389,12 @@ body {
 }
 
 .season-pill-btn:hover {
-  border-color: #f472b6;
-  color: #db2777;
+  border-color: var(--accent-light);
+  color: var(--accent-strong);
 }
 
 .season-pill-btn.active {
-  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
   border-color: transparent;
   color: #ffffff;
 }
@@ -1438,7 +1438,7 @@ body {
 
 .pokedex-cell:hover {
   transform: translateY(-1px);
-  border-color: #ec4899;
+  border-color: var(--accent);
 }
 
 .pokedex-cell.locked {
@@ -1535,7 +1535,7 @@ body {
   padding: 6px 12px;
   border: none;
   border-radius: 8px;
-  background: #ec4899;
+  background: var(--accent);
   color: #ffffff;
   font-size: 13px;
   font-weight: 700;
@@ -1604,7 +1604,7 @@ body {
   width: 96px;
   height: 96px;
   border-radius: 18px;
-  border: 2px solid #fbcfe8;
+  border: 2px solid var(--accent-border);
   background: #ffffff;
   padding: 6px;
   box-sizing: border-box;
@@ -1625,8 +1625,8 @@ body {
   display: inline-block;
   font-size: 0.72rem;
   font-weight: 700;
-  color: #db2777;
-  background: #fdf2f8;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
   padding: 2px 8px;
   border-radius: 999px;
   margin-bottom: 4px;
@@ -1677,8 +1677,8 @@ body {
 .char-study-status-box {
   display: flex;
   justify-content: space-between;
-  background: #fdf2f8;
-  border: 1px solid #fbcfe8;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
   border-radius: 10px;
   padding: 8px 12px;
   margin-bottom: 14px;
@@ -1877,7 +1877,7 @@ body {
   padding: 4px 10px;
   border: none;
   border-radius: 4px;
-  background: #ec4899;
+  background: var(--accent);
   color: #ffffff;
   font-size: 12px;
   cursor: pointer;
@@ -2009,7 +2009,7 @@ body {
 }
 
 .tab-btn.active {
-  background: linear-gradient(135deg, #ec4899, #6366f1);
+  background: linear-gradient(135deg, var(--accent), #6366f1);
   color: #ffffff;
 }
 
@@ -2060,8 +2060,8 @@ body {
   gap: 8px;
   padding: 14px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #fdf2f8 0%, #eef2ff 100%);
-  border: 1px solid #fbcfe8;
+  background: linear-gradient(135deg, var(--accent-soft) 0%, #eef2ff 100%);
+  border: 1px solid var(--accent-border);
   margin-bottom: 14px;
   text-align: center;
 }
@@ -2085,7 +2085,7 @@ body {
 }
 
 .trivia-summary-stat strong.accent {
-  color: #db2777;
+  color: var(--accent-strong);
 }
 
 .trivia-report-list {
@@ -2222,7 +2222,7 @@ body {
 }
 
 .trivia-footer-btn.retry {
-  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
   color: #ffffff;
 }
 
@@ -2285,13 +2285,13 @@ body {
   gap: 12px;
   padding: 14px 16px;
   border-radius: var(--radius-md);
-  background: #fdf2f8;
-  border: 1px solid #fbcfe8;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
 }
 
 .auth-guest-icon {
   font-size: 24px !important;
-  color: #db2777;
+  color: var(--accent-strong);
   background: #ffffff;
   padding: 8px;
   border-radius: 10px;
@@ -2691,8 +2691,8 @@ body {
 }
 
 .inbox-item.unread {
-  border-color: #fbcfe8;
-  background: #fdf2f8;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
 }
 
 .inbox-item-head {
@@ -2750,7 +2750,7 @@ body {
 .inbox-study,
 .hint-my-save {
   border: none;
-  background: #ec4899;
+  background: var(--accent);
   color: #ffffff;
   border-radius: var(--radius-full);
   padding: 7px 16px;
@@ -2872,7 +2872,7 @@ body {
 }
 
 .hint-item.is-mine {
-  border-color: #fbcfe8;
+  border-color: var(--accent-border);
 }
 
 .hint-item-text {
@@ -2902,9 +2902,9 @@ body {
 }
 
 .hint-like-btn.liked {
-  background: #fdf2f8;
+  background: var(--accent-soft);
   border-color: #f9a8d4;
-  color: #be185d;
+  color: var(--accent-dark);
 }
 
 .hint-like-btn:disabled {
@@ -3005,7 +3005,7 @@ textarea,
 
 .hint-my-box .hint-item.is-mine {
   margin-bottom: 0;
-  background: #fdf2f8;
+  background: var(--accent-soft);
 }
 
 .hint-my-inline-actions {
@@ -3163,7 +3163,7 @@ textarea,
   border: none;
   border-radius: 999px;
   padding: 8px 18px;
-  background: #ec4899;
+  background: var(--accent);
   color: #ffffff;
   font-family: inherit;
   font-weight: 800;
@@ -3182,8 +3182,8 @@ textarea,
   pointer-events: none;
   font-family: 'Outfit', 'Noto Sans KR', sans-serif;
   font-weight: 900;
-  color: #ec4899;
-  text-shadow: 0 2px 0 #ffffff, 0 6px 18px rgba(236, 72, 153, 0.45);
+  color: var(--accent);
+  text-shadow: 0 2px 0 #ffffff, 0 6px 18px rgba(var(--accent-rgb), 0.45);
   transform: translate(-50%, -50%);
   animation: comboPop 0.9s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
 }
@@ -3227,4 +3227,538 @@ textarea,
     0%, 70% { opacity: 1; }
     100% { opacity: 0; }
   }
+}
+
+/* 강조색(설정의 테마색). 기본은 분홍, html[data-accent] 로 바꾼다. 바탕(--bg-gradient)과 글자색은 그대로. QuizApp Common GUI 「테마색」 */
+:root, html[data-accent="pink"] {
+  --accent: #ec4899;
+  --accent-light: #f472b6;
+  --accent-strong: #db2777;
+  --accent-dark: #be185d;
+  --accent-soft: #fdf2f8;
+  --accent-softer: #fce7f3;
+  --accent-border: #fbcfe8;
+  --accent-2: #f43f5e;
+  --accent-rgb: 236, 72, 153;
+}
+
+html[data-accent="blue"] {
+  --accent: #2563eb;
+  --accent-light: #60a5fa;
+  --accent-strong: #1d4ed8;
+  --accent-dark: #1e40af;
+  --accent-soft: #eff6ff;
+  --accent-softer: #dbeafe;
+  --accent-border: #bfdbfe;
+  --accent-2: #0ea5e9;
+  --accent-rgb: 37, 99, 235;
+}
+
+html[data-accent="green"] {
+  --accent: #16a34a;
+  --accent-light: #4ade80;
+  --accent-strong: #15803d;
+  --accent-dark: #166534;
+  --accent-soft: #f0fdf4;
+  --accent-softer: #dcfce7;
+  --accent-border: #bbf7d0;
+  --accent-2: #0d9488;
+  --accent-rgb: 22, 163, 74;
+}
+
+html[data-accent="purple"] {
+  --accent: #7c3aed;
+  --accent-light: #a78bfa;
+  --accent-strong: #6d28d9;
+  --accent-dark: #5b21b6;
+  --accent-soft: #f5f3ff;
+  --accent-softer: #ede9fe;
+  --accent-border: #ddd6fe;
+  --accent-2: #a855f7;
+  --accent-rgb: 124, 58, 237;
+}
+
+html[data-accent="orange"] {
+  --accent: #ea580c;
+  --accent-light: #fb923c;
+  --accent-strong: #c2410c;
+  --accent-dark: #9a3412;
+  --accent-soft: #fff7ed;
+  --accent-softer: #ffedd5;
+  --accent-border: #fed7aa;
+  --accent-2: #f59e0b;
+  --accent-rgb: 234, 88, 12;
+}
+
+/* 설정의 테마색 고르기 */
+.accent-swatches {
+  display: flex;
+  gap: 8px;
+}
+
+.accent-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px #cbd5e1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.accent-swatch[aria-checked="true"] {
+  box-shadow: 0 0 0 2px #0f172a;
+}
+
+/* 도움말 맨 아래 버전 표시 */
+.app-version-box {
+  margin: 20px 0 8px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  font-size: 0.82rem;
+}
+
+.app-version-box div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+
+.app-version-box span {
+  color: #64748b;
+}
+
+.app-version-box b {
+  color: #0f172a;
+}
+
+/* 학습현황 맨 위 최대 콤보 그래프 */
+.combo-stats {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #f9f9f9;
+  border-radius: 6px;
+}
+
+.combo-stats-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.combo-stats-title {
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.combo-range-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.combo-range-tab {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.combo-range-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.combo-all-time-row {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.combo-all-time-row b {
+  color: #f59e0b;
+}
+
+.combo-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 80px;
+  padding-top: 12px;
+}
+
+.combo-chart.dense {
+  gap: 1px;
+}
+
+.combo-bar-col {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.combo-bar {
+  width: 100%;
+  max-width: 30px;
+  min-height: 2px;
+  background: linear-gradient(180deg, var(--accent-light), var(--accent));
+  border-radius: 4px 4px 0 0;
+}
+
+.combo-bar-value {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--accent);
+  min-height: 11px;
+}
+
+.combo-bar-label {
+  font-size: 9px;
+  margin-top: 4px;
+  color: #999;
+  white-space: nowrap;
+  min-height: 11px;
+}
+
+/* 도움말 맨 위의 자매품 칸: 테두리 없이 아래 간격만 */
+.modal-body > .sister-apps {
+  padding: 0 0 12px;
+  margin-bottom: 12px;
+}
+
+/* 안내 카드 위의 날씨 층 (components/weather-layer.js) */
+.weather-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.setting-hint-inline {
+  display: block;
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* ===== 전체 화면 설정·리더보드·학습현황·도움말과 도구 줄 (CharQuiz 와 같은 모양, QuizApp Common GUI) ===== */
+/* 헤더 설정 톱니의 new 점과 설정 화면 앱 정보 아이콘의 새 버전 점 */
+.setting-new-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid #ffffff;
+  pointer-events: none;
+}
+
+.setting-new-dot[hidden] {
+  display: none;
+}
+
+.modal-overlay.full-screen {
+  background: #fcfdff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  align-items: stretch;
+}
+
+.full-screen .modal-content {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: #fcfdff;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  animation: fadeIn 0.18s ease;
+}
+
+.full-screen .modal-header,
+.full-screen .modal-body {
+  width: 100%;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+.full-screen-header {
+  gap: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 10px;
+}
+
+.setting-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.setting-tool-btn {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.setting-tool-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.setting-tool-btn:active {
+  transform: scale(0.94);
+}
+
+.setting-tool-btn .material-symbols-outlined {
+  font-size: 1.3rem;
+}
+
+.setting-tool-btn .setting-new-dot {
+  top: 4px;
+  right: 4px;
+}
+
+/* 알림함 아이콘의 읽지 않은 수 */
+.inbox-unread-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.inbox-unread-badge[hidden] {
+  display: none;
+}
+
+
+/* 설정 화면 제목 왼쪽의 앱 설치 단추와 설치 전 빨간 점 */
+.full-screen-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.install-has-dot::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid #ffffff;
+}
+
+.inbox-unread-badge[hidden] {
+  display: none !important;
+}
+
+/* 학습 결과표 (QuizApp Common GUI 「학습 결과」) */
+.info-overlay-body {
+  padding: 12px 16px 16px;
+  overflow-y: auto;
+}
+
+.study-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.study-summary-table th {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 700;
+  padding: 6px 4px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.study-summary-table td {
+  padding: 7px 4px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.study-summary-table .sum-char {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.study-summary-table tfoot td {
+  font-weight: 800;
+  border-top: 2px solid #e2e8f0;
+  border-bottom: none;
+}
+
+.sum-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.sum-new { background: #e0f2fe; color: #0369a1; }
+.sum-up { background: #dcfce7; color: #15803d; }
+.sum-down { background: #fee2e2; color: #b91c1c; }
+.sum-risk { background: #fef3c7; color: #b45309; }
+
+.study-summary-note {
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+/* 결과 창: 게스트에게 로그인 안내 */
+.ranking-login-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  font-size: 0.8rem;
+  color: var(--accent-deep);
+  line-height: 1.45;
+}
+
+.ranking-login-btn {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.study-summary-table .sum-name {
+  font-size: 0.85rem;
+  text-align: left;
+  word-break: keep-all;
+}
+
+/* 기록 모드 두 갈래(20문제 / 30초)와 30초 결과 */
+.mode-btn.mode-split {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: stretch;
+  cursor: default;
+}
+
+.mode-btn.mode-split:hover {
+  transform: none;
+}
+
+.mode-split-half {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 18px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.mode-split-half + .mode-split-half {
+  border-top: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.mode-split-half:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.mode-split-half:active {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.mode-split-icon {
+  font-size: 1.8rem !important;
+  font-variation-settings: 'FILL' 1, 'wght' 600;
+}
+
+.mode-split-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+
+.timeattack-result {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 0 4px;
+}
+
+.timeattack-result strong {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
 }

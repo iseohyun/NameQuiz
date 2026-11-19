@@ -18,6 +18,12 @@ import {
   buildRankingDomainKey
 } from './components/store.js';
 import { getTrailingStreak, showCombo } from './components/combo-fx.js';
+import { renderSisterAppsHtml, hydrateSisterApps } from './components/sister-apps.js';
+import { toLocalDateKey } from './components/date-utils.js';
+import { WEATHER_META, getApproxWeather } from './components/season-weather.js';
+import { startWeatherLayer } from './components/weather-layer.js';
+import { initSettingNewDot, hasUnseenVersion, markVersionSeen } from './components/new-dot.js';
+import { refreshInstallButtons } from './components/install-prompt.js';
 import { auth } from './components/firebase-config.js';
 import {
   DOMAINS,
@@ -43,11 +49,16 @@ import {
   updateDailyStudyTime,
   getUserConfig,
   saveUserConfig,
-  getWeeklyStats,
+  loadComboState,
+  saveComboStats,
+  getComboHistory,
+  mergeGuestCombo,
   submitSpeedrunRanking,
   getGlobalRankings,
   getStudyRankings,
   submitStudyRanking,
+  submitTimeAttackRanking,
+  getTimeAttackRankings,
   toPersistedSchema,
   findGuestProgressToMerge,
   markGuestMergeHandled,
@@ -77,7 +88,7 @@ import {
   scheduleReviewNotification,
   getLastReminderResult
 } from './components/notification-handler.js';
-import { initNotificationInbox, openInboxModal } from './components/notification-inbox.js';
+import { initNotificationInbox, openInboxModal, updateInboxBadge } from './components/notification-inbox.js';
 import { openHintListModal, renderHintHallOfFame } from './components/hint-handler.js';
 import {
   SEASON_META,
@@ -88,7 +99,7 @@ import {
   stopSeasonalStage
 } from './components/seasonal-stage.js';
 import {
-  renderStudyStatsChart,
+  renderComboChart,
   renderResponseTimeChart,
   renderProgressTable,
   renderSeasonTabsInModal,
@@ -139,6 +150,9 @@ let isStartingSession = false;
 // 기록 모드(스피드런) 및 질문(Trivia) 세트 전용 상태
 // 캐릭터 기록 모드 한 판의 문제 수 상한. 보기(오답 후보)는 범위 전체에서 뽑는다.
 const SPEEDRUN_MAX_QUESTIONS = 20;
+const TIME_ATTACK_SECONDS = 30;
+let srTimeAttack = false; // 기록 모드 「30초 타임어택」: 20문제 흐름을 쓰되 30초 동안 계속 내고 맞힌 수로 잰다
+let taTimeLeft = 0;
 let srElapsedTime = 0;
 let srTotalCount = 0;
 let srCurrentIndex = 0;
@@ -160,6 +174,42 @@ function startInfoCardFloatingChars() {
   const seasonFilter = getActiveSeasonFilter();
   const charsPool = getCharacters(domain, seasonFilter);
   startSeasonalStage(stageEl, charsPool);
+  applyWeatherToInfoCard();
+}
+
+/* ---------- 계절 무대 위의 날씨 (QuizApp Common GUI 「계절·날씨 무대」) ---------- */
+let infoCardWeather = null;
+let weatherRequested = false;
+
+/** 계절 배지 뒤에 붙는 날씨 글자. 설정에서 끄면 빈 글자 */
+function weatherBadgeSuffix() {
+  if (userConfig.weatherTheme === false || !infoCardWeather) return '';
+  const meta = WEATHER_META[infoCardWeather.kind];
+  if (!meta) return '';
+  const icon = infoCardWeather.isDay ? meta.icon : (meta.nightIcon || meta.icon);
+  return ` · ${icon} ${meta.label}${infoCardWeather.temp !== null ? ` ${infoCardWeather.temp}°` : ''}`;
+}
+
+function refreshSeasonBadge() {
+  const badgeEl = document.getElementById('season-theme-badge');
+  const meta = SEASON_META[getActiveSeasonTheme()];
+  if (badgeEl && meta) badgeEl.innerText = `${meta.icon} ${meta.label}${weatherBadgeSuffix()}`;
+}
+
+/** 안내 카드에 날씨 층을 겹친다. 날씨는 처음 한 번만 받아 오고(1시간 저장), 받으면 다시 그린다 */
+function applyWeatherToInfoCard() {
+  const card = document.getElementById('info-floating-stage')?.closest('.mode-info-card');
+  if (!card) return;
+  const enabled = userConfig.weatherTheme !== false;
+  startWeatherLayer(card, enabled ? infoCardWeather : null);
+  refreshSeasonBadge();
+  if (enabled && !weatherRequested) {
+    weatherRequested = true;
+    getApproxWeather().then((value) => {
+      infoCardWeather = value;
+      if (value) applyWeatherToInfoCard();
+    });
+  }
 }
 
 window.cycleInfoCardSeason = function (event) {
@@ -168,7 +218,7 @@ window.cycleInfoCardSeason = function (event) {
   const meta = SEASON_META[nextTheme];
   const badgeEl = document.getElementById('season-theme-badge');
   if (badgeEl && meta) {
-    badgeEl.innerText = `${meta.icon} ${meta.label}`;
+    badgeEl.innerText = `${meta.icon} ${meta.label}${weatherBadgeSuffix()}`;
     badgeEl.classList.remove('pulse-scale');
     void badgeEl.offsetWidth;
     badgeEl.classList.add('pulse-scale');
@@ -180,7 +230,7 @@ window.setInfoCardSeason = function (themeName) {
   const nextTheme = setSeasonTheme(themeName);
   const meta = SEASON_META[nextTheme];
   const badgeEl = document.getElementById('season-theme-badge');
-  if (badgeEl && meta) badgeEl.innerText = `${meta.icon} ${meta.label}`;
+  if (badgeEl && meta) badgeEl.innerText = `${meta.icon} ${meta.label}${weatherBadgeSuffix()}`;
   startInfoCardFloatingChars();
 };
 
@@ -236,14 +286,17 @@ function buildMainSelectionHtml() {
         <span class="keybind-badge" id="kb-badge-startStudy">Q</span>
       </button>
 
-      <button type="button" class="mode-btn mode-record" onclick="startSessionWorkflow('record')">
-        <div class="mode-btn-content">
-          <span class="material-symbols-outlined mode-icon">timer</span>
-          <span class="mode-title">기록 모드</span>
-          <span class="mode-desc">${escapeHtml(recordDesc)}</span>
-        </div>
-        <span class="keybind-badge" id="kb-badge-startRecord">W</span>
-      </button>
+      <div class="mode-btn mode-record mode-split">
+        <button type="button" class="mode-split-half" onclick="startSessionWorkflow('record')" title="${escapeHtml(recordDesc)}">
+          <span class="material-symbols-outlined mode-split-icon">timer</span>
+          <span class="mode-split-title">${isTrivia ? '질문 기록' : '20문제 타임어택'}</span>
+          <span class="keybind-badge" id="kb-badge-startRecord">W</span>
+        </button>
+        <button type="button" class="mode-split-half" onclick="startSessionWorkflow('timeattack')">
+          <span class="material-symbols-outlined mode-split-icon">avg_pace</span>
+          <span class="mode-split-title">30초 타임어택</span>
+        </button>
+      </div>
 
       <button type="button" class="mode-btn mode-spectator" onclick="startSessionWorkflow('spectator')">
         <div class="mode-btn-content">
@@ -276,6 +329,7 @@ window.addEventListener('load', initApp);
 async function initApp() {
   // 웹 푸시 알림: 이미 허용된 경우에만 토큰을 조용히 받는다. 권한 요청은 설정의 「복습 알림」에서만 한다 (Common GUI push)
   initNotificationToken();
+  initSettingNewDot();
   initNotificationInbox({ onStartStudy: startStudyFromInbox });
 
   // 새 판 감지: 설치한 앱은 스스로 다시 불러오지 않으므로 서버의 판을 확인해 안내한다 (Common GUI update-notice)
@@ -300,6 +354,8 @@ async function initApp() {
     }
 
     applySavedConfig(await getUserConfig());
+    applyAccentColor(userConfig.accentColor);
+    comboState = await loadComboState();
     updateHeaderControlBadges();
     if (document.getElementById('mode-selection-layer')) {
       resetToMainModeSelection();
@@ -337,6 +393,7 @@ function applySavedConfig(savedConfig) {
  */
 async function offerGuestProgressMerge() {
   const candidate = findGuestProgressToMerge();
+  await mergeGuestCombo();
   if (!candidate || candidate.items.length === 0) return;
 
   markGuestMergeHandled(candidate.flagKey);
@@ -499,8 +556,10 @@ window.startSessionWorkflow = async function (mode) {
   if (isStartingSession) return;
   isStartingSession = true;
   stopAllSessionTimers();
+  srTimeAttack = mode === 'timeattack';
+  if (srTimeAttack) mode = 'record';
   currentMode = mode;
-  isTriviaSetSession = (mode !== 'spectator' && userConfig.quizDirection === 'trivia');
+  isTriviaSetSession = !srTimeAttack && (mode !== 'spectator' && userConfig.quizDirection === 'trivia');
 
   try {
     const versionQuery = (window.CACHE_BUST || window.APP_VERSION) ? `?v=${window.CACHE_BUST || window.APP_VERSION}` : '';
@@ -548,7 +607,7 @@ window.startSessionWorkflow = async function (mode) {
         badge.className = 'mode-badge study';
         if (badgeIcon) badgeIcon.innerText = 'school';
       } else if (mode === 'record') {
-        title.innerText = `${domLabel} 기록`;
+        title.innerText = srTimeAttack ? `${domLabel} 30초 타임어택` : `${domLabel} 20문제`;
         badge.className = 'mode-badge record';
         if (badgeIcon) badgeIcon.innerText = 'timer';
       } else {
@@ -836,11 +895,34 @@ async function startQuizSession() {
   const dbData = await getAllProgress(domain);
   currentPool = initSessionPool(domain, dbData, userConfig.autoProgress, userConfig.MAX_POOL_SIZE, seasonFilter);
 
+  // 복습은 항상 포함: 시즌을 골라 두었어도 다른 시즌의 복습 때가 된 캐릭터를 함께 낸다(새 캐릭터는 고른 시즌에서만).
+  // 풀이 넘치면 복습 캐릭터를 먼저 남긴다. (QuizApp Common GUI 「복습은 항상 포함」)
+  if (seasonFilter !== 'all') {
+    const dueElsewhere = initSessionPool(domain, dbData, false, 9999, 'all')
+      .filter((item) => item.isEligibleForPromotion && !currentPool.some((p) => p.charId === item.charId));
+    if (dueElsewhere.length) {
+      const poolLimit = Math.max(4, Number(userConfig.MAX_POOL_SIZE) || 10);
+      currentPool = [...currentPool, ...dueElsewhere]
+        .sort(() => Math.random() - 0.5)
+        .sort((a, b) => Number(Boolean(b.isEligibleForPromotion)) - Number(Boolean(a.isEligibleForPromotion)))
+        .slice(0, Math.max(poolLimit, currentPool.length));
+    }
+  }
+
   if (!currentPool || currentPool.length === 0) {
     alert('출제 가능한 캐릭터 데이터가 없습니다.');
     resetToMainModeSelection();
     return;
   }
+
+  sessionStartSnapshot = {};
+  currentPool.forEach((item) => {
+    sessionStartSnapshot[item.charId] = {
+      stage: item.stage || 0,
+      hadHistory: (item.totalSolved || 0) > 0,
+      avgBefore: averageLatencySec(item)
+    };
+  });
 
   await preloadCharacterImages(currentPool);
 
@@ -890,6 +972,7 @@ async function handleUserAnswer(selectedCharId, latency, clickedBtn) {
   });
   updateHistoryBarUI();
   if (isCorrect) showCombo(getTrailingStreak(sessionHistory));
+  trackRunningCombo(isCorrect);
 
   await handleAnswerFeedback(isCorrect, clickedBtn, target.charId);
 
@@ -978,6 +1061,8 @@ async function terminateQuizSession() {
 
   const domain = userConfig.currentDomain;
   resetToMainModeSelection();
+  saveComboStats(getSessionMaxCombo(sessionHistory), comboState);
+  showStudySummary();
 
   // 복습 알림 예약은 Firestore 저장과 따로 먼저 시작한다.
   // 연결이 나쁘면 Firestore 저장이 끝나지 않고 멈춰 있어, 그 뒤에 두면 예약 요청이 아예 나가지 않는다.
@@ -998,10 +1083,8 @@ async function terminateQuizSession() {
     const { rankingDomain, playerName } = resolveRankingMetadata();
     if (canSubmitRanking()) {
       await submitStudyRanking(rankingDomain, correctCount, playedTime, accuracy, playerName);
-    } else if (sessionHistory.length > 0) {
-      // 게스트가 학습을 마칠 때마다 로그인을 권한다(로그인하면 지금까지의 기록이 계정에 합쳐짐)
-      showGuestRankingNotice();
     }
+    // 게스트의 로그인 안내는 학습 결과표 아래에 함께 나온다(showStudySummary)
   } catch (dbError) {
     console.warn('[LocalFirst] 학습 세션 정산 안내:', dbError.message || dbError);
   }
@@ -1047,12 +1130,13 @@ async function startSpeedrunSession() {
 
   currentPool.sort(() => Math.random() - 0.5);
 
-  srTotalCount = Math.min(currentPool.length, SPEEDRUN_MAX_QUESTIONS);
+  srTotalCount = srTimeAttack ? currentPool.length : Math.min(currentPool.length, SPEEDRUN_MAX_QUESTIONS);
   srCurrentIndex = 0;
   srCorrectCount = 0;
   srElapsedTime = 0;
+  taTimeLeft = TIME_ATTACK_SECONDS;
 
-  await preloadCharacterImages(currentPool.slice(0, srTotalCount));
+  await preloadCharacterImages(currentPool.slice(0, srTimeAttack ? 24 : srTotalCount));
 
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(tickSpeedrunTimer, 1000);
@@ -1067,10 +1151,11 @@ async function renderNextSpeedrunQuestion() {
   optionsContainer.style.pointerEvents = 'auto';
   optionsContainer.style.opacity = '1';
 
-  if (srCurrentIndex >= srTotalCount) {
+  if (!srTimeAttack && srCurrentIndex >= srTotalCount) {
     await terminateSpeedrunSession();
     return;
   }
+  if (srTimeAttack && taTimeLeft <= 0) return;
 
   if (srCurrentIndex % 16 === 0 && srCurrentIndex + 16 < srTotalCount) {
     preloadCharacterImages(currentPool.slice(srCurrentIndex + 16, Math.min(srCurrentIndex + 40, srTotalCount)));
@@ -1078,16 +1163,20 @@ async function renderNextSpeedrunQuestion() {
 
   const domain = userConfig.currentDomain;
   const seasonFilter = getActiveSeasonFilter();
-  const targetItem = currentPool[srCurrentIndex];
-  currentQuestion = generateFourOptions(targetItem, currentPool, userConfig.quizDirection, domain, seasonFilter);
+  const targetItem = currentPool[srCurrentIndex % currentPool.length];
+  const direction = srTimeAttack && userConfig.quizDirection === 'trivia' ? 'mixed' : userConfig.quizDirection;
+  currentQuestion = generateFourOptions(targetItem, currentPool, direction, domain, seasonFilter);
 
   const weightDisplay = document.getElementById('weight-display');
   if (weightDisplay) {
     weightDisplay.style.color = '#334155';
-    weightDisplay.innerText = `진행률: ${srCurrentIndex + 1} / ${srTotalCount} | 정답: ${srCorrectCount} | ⏱️ ${formatTime(srElapsedTime)}`;
+    weightDisplay.innerText = srTimeAttack
+      ? `⏱️ ${Math.max(0, taTimeLeft)}초 | ✅ ${srCorrectCount} / ${srCurrentIndex}`
+      : `진행률: ${srCurrentIndex + 1} / ${srTotalCount} | 정답: ${srCorrectCount} | ⏱️ ${formatTime(srElapsedTime)}`;
   }
 
-  updateTimerProgressBar(srTotalCount - (srCurrentIndex + 1), srTotalCount);
+  if (srTimeAttack) updateTimerProgressBar(taTimeLeft, TIME_ATTACK_SECONDS);
+  else updateTimerProgressBar(srTotalCount - (srCurrentIndex + 1), srTotalCount);
   renderQuestionPromptAndOptions(optionsContainer, handleSpeedrunAnswer);
   questionStartTime = Date.now();
 }
@@ -1096,13 +1185,15 @@ async function handleSpeedrunAnswer(selectedCharId, latency, clickedBtn) {
   const optionsContainer = document.getElementById('options');
   if (optionsContainer) optionsContainer.style.pointerEvents = 'none';
 
+  if (srTimeAttack && taTimeLeft <= 0) return;
   const target = currentQuestion.target;
   const isCorrect = Number(selectedCharId) === Number(target.charId);
   if (isCorrect) srCorrectCount++;
 
   if (target.isUnlocked) {
-    const updatedItem = calculateReviewState({ ...target }, isCorrect, latency);
-    currentPool[srCurrentIndex] = { ...updatedItem, isUnlocked: true };
+    const poolIdx = srCurrentIndex % currentPool.length;
+    const updatedItem = calculateReviewState({ ...currentPool[poolIdx] }, isCorrect, latency);
+    currentPool[poolIdx] = { ...updatedItem, isUnlocked: true, touched: true };
   }
 
   sessionHistory.push({ domain: userConfig.currentDomain, charId: target.charId, isCorrect, speed: latency });
@@ -1116,6 +1207,14 @@ async function handleSpeedrunAnswer(selectedCharId, latency, clickedBtn) {
 
 function tickSpeedrunTimer() {
   srElapsedTime++;
+  if (srTimeAttack) {
+    taTimeLeft--;
+    const display = document.getElementById('weight-display');
+    if (display) display.innerText = `⏱️ ${Math.max(0, taTimeLeft)}초 | ✅ ${srCorrectCount} / ${srCurrentIndex}`;
+    updateTimerProgressBar(Math.max(0, taTimeLeft), TIME_ATTACK_SECONDS);
+    if (taTimeLeft <= 0) terminateSpeedrunSession();
+    return;
+  }
   const weightDisplay = document.getElementById('weight-display');
   if (weightDisplay && currentMode === 'record' && !isTriviaSetSession) {
     const idxDisplay = Math.min(srCurrentIndex + 1, srTotalCount);
@@ -1130,6 +1229,10 @@ function formatTime(seconds) {
 }
 
 async function terminateSpeedrunSession() {
+  if (srTimeAttack) {
+    await terminateTimeAttackSession();
+    return;
+  }
   const isCompletedAll = srCurrentIndex >= srTotalCount && srTotalCount > 0;
   const domain = userConfig.currentDomain;
   stopAllSessionTimers();
@@ -1160,6 +1263,63 @@ async function terminateSpeedrunSession() {
     }
   } catch (err) {
     console.error('기록 모드 정산 중 예외 발생:', err);
+  }
+}
+
+/** 30초 타임어택을 마친다. 시간이 다 됐으면 결과 창을 띄우고(게스트는 로그인 안내), 로그인했으면 30초 순위에 올린다 */
+async function terminateTimeAttackSession() {
+  const finishedInTime = taTimeLeft <= 0;
+  const solved = srCurrentIndex;
+  const correct = srCorrectCount;
+  const domain = userConfig.currentDomain;
+  srTimeAttack = false;
+  stopAllSessionTimers();
+  isPaused = false;
+  isTimeUp = false;
+  resetToMainModeSelection();
+
+  const accuracy = solved > 0 ? Math.round((correct / solved) * 100) : 0;
+  if (finishedInTime && solved > 0) {
+    const loginNote = canSubmitRanking() ? '' : `
+      <div class="ranking-login-note">
+        <span>로그인하면 지금까지 게스트로 학습한 기록이 계정에 합쳐지고, 다음 기록부터 리더보드에도 올라갑니다.</span>
+        <button type="button" class="ranking-login-btn">로그인</button>
+      </div>`;
+    const overlay = document.createElement('div');
+    overlay.className = 'inbox-overlay info-overlay';
+    overlay.innerHTML = `
+      <div class="inbox-card" role="dialog" aria-label="30초 타임어택 결과">
+        <div class="inbox-header">
+          <h4>30초 타임어택</h4>
+          <button type="button" class="inbox-close" aria-label="닫기">&times;</button>
+        </div>
+        <div class="info-overlay-body">
+          <div class="timeattack-result"><strong>${correct}</strong><span>개 맞힘</span></div>
+          <p class="study-summary-note">푼 문제 ${solved}개 · 정답률 ${accuracy}%</p>
+          ${loginNote}
+        </div>
+      </div>`;
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay || e.target.closest('.inbox-close')) overlay.remove();
+      else if (e.target.closest('.ranking-login-btn')) {
+        overlay.remove();
+        window.popupLogin();
+      }
+    });
+    document.body.appendChild(overlay);
+  }
+
+  try {
+    const itemsToSave = currentPool.filter((item) => item.isUnlocked && item.touched);
+    if (itemsToSave.length > 0) await saveSessionPoolState(domain, itemsToSave);
+    await updateDailyStudyTime(TIME_ATTACK_SECONDS - Math.max(0, taTimeLeft), domain);
+    updateReviewCountBadge();
+    if (finishedInTime && solved > 0 && canSubmitRanking()) {
+      const { rankingDomain, playerName } = resolveRankingMetadata();
+      await submitTimeAttackRanking(rankingDomain, correct, solved, accuracy, playerName);
+    }
+  } catch (err) {
+    console.error('30초 타임어택 정산 중 예외 발생:', err);
   }
 }
 
@@ -1493,6 +1653,161 @@ window.toggleQuizDirection = function () {
 /* ==========================================================================
    원격 모달 마운트 (progress, setting, leaderboard, help, login)
    ========================================================================== */
+/* ---------- 학습 결과표 (QuizApp Common GUI 「학습 결과」) ---------- */
+let sessionStartSnapshot = {}; // 학습 시작 때 캐릭터별 {stage, hadHistory, avgBefore}
+
+/** 최근 응답 속도 평균(초). 기록이 없으면 null */
+function averageLatencySec(item) {
+  const list = item?.recentLatencies || [];
+  if (!list.length) return null;
+  return list.reduce((a, b) => a + b, 0) / list.length / 1000;
+}
+
+/**
+ * 학습이 끝난 뒤 캐릭터별 요약과 총합. 캐릭터 | 맞힘/푼 수 | 평균 응답속도 이전 → 이번 | 상태
+ * 상태: 새캐릭터(처음 나온 것), 승급, 강급, 강급후보(틀렸거나 느려짐), 유지. 게스트는 아래에 로그인 안내
+ */
+function showStudySummary() {
+  const byChar = new Map();
+  sessionHistory.forEach((h) => {
+    const row = byChar.get(h.charId) || { charId: h.charId, correct: 0, solved: 0 };
+    row.solved += 1;
+    if (h.isCorrect) row.correct += 1;
+    byChar.set(h.charId, row);
+  });
+  if (byChar.size === 0) return;
+
+  const fmt = (v) => (v === null || v === undefined ? '-' : v.toFixed(1));
+  const rows = [...byChar.values()].map((row) => {
+    const before = sessionStartSnapshot[row.charId] || { stage: 0, hadHistory: false, avgBefore: null };
+    const item = currentPool.find((p) => p.charId === row.charId);
+    const avgAfter = averageLatencySec(item);
+    const stageAfter = item ? item.stage : before.stage;
+    let status = 'keep';
+    if (!before.hadHistory) status = 'new';
+    else if (stageAfter > before.stage) status = 'up';
+    else if (stageAfter < before.stage) status = 'down';
+    else if (row.correct < row.solved || (before.avgBefore !== null && avgAfter !== null && avgAfter > before.avgBefore)) status = 'risk';
+    return { ...row, name: item?.koName || String(row.charId), avgBefore: before.hadHistory ? before.avgBefore : null, avgAfter, status };
+  });
+
+  const mean = (list) => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : null);
+  const total = {
+    correct: rows.reduce((n, r) => n + r.correct, 0),
+    solved: rows.reduce((n, r) => n + r.solved, 0),
+    avgBefore: mean(rows.map((r) => r.avgBefore).filter((v) => v !== null)),
+    avgAfter: mean(rows.map((r) => r.avgAfter).filter((v) => v !== null))
+  };
+  const statusLabel = { new: '새캐릭터', up: '승급', down: '강급', risk: '강급후보', keep: '유지' };
+  const body = rows.map((r) => `
+    <tr>
+      <td class="sum-char sum-name">${escapeHtml(r.name)}</td>
+      <td>${r.correct} / ${r.solved}</td>
+      <td>${fmt(r.avgBefore)} → ${fmt(r.avgAfter)}</td>
+      <td><span class="sum-status sum-${r.status}">${statusLabel[r.status]}</span></td>
+    </tr>`).join('');
+  const loginNote = canSubmitRanking() ? '' : `
+    <div class="ranking-login-note">
+      <span>로그인하면 지금까지 게스트로 학습한 기록이 계정에 합쳐져 다른 기기에서도 이어서 할 수 있고, 다음 기록부터 리더보드에도 올라갑니다.</span>
+      <button type="button" class="ranking-login-btn">로그인</button>
+    </div>`;
+
+  document.querySelector('.info-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'inbox-overlay info-overlay';
+  overlay.innerHTML = `
+    <div class="inbox-card" role="dialog" aria-label="학습 결과">
+      <div class="inbox-header">
+        <h4>학습 결과</h4>
+        <button type="button" class="inbox-close" aria-label="닫기">&times;</button>
+      </div>
+      <div class="info-overlay-body">
+        <table class="study-summary-table">
+          <thead><tr><th>캐릭터</th><th>맞힘</th><th>응답속도(초)</th><th>상태</th></tr></thead>
+          <tbody>${body}</tbody>
+          <tfoot><tr><td>총계</td><td>${total.correct} / ${total.solved}</td><td>${fmt(total.avgBefore)} → ${fmt(total.avgAfter)}</td><td></td></tr></tfoot>
+        </table>
+        <p class="study-summary-note">응답속도는 최근 기록 평균입니다. 강급후보는 이번에 틀렸거나 전보다 느려진 캐릭터입니다.</p>
+        ${loginNote}
+      </div>
+    </div>`;
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay || e.target.closest('.inbox-close')) overlay.remove();
+    else if (e.target.closest('.ranking-login-btn')) {
+      overlay.remove();
+      window.popupLogin();
+    }
+  });
+  document.body.appendChild(overlay);
+}
+
+/* ---------- 콤보 기록 (QuizApp Common GUI 「콤보 기록」) ---------- */
+let comboState = { current: 0, best: 0, bestAt: null }; // 판·날짜가 바뀌어도 이어지는 연속 정답과 역대 최대
+let comboRange = 'week';
+
+/** 학습 모드 답 하나를 이어지는 콤보에 반영한다 */
+function trackRunningCombo(isCorrect) {
+  if (!isCorrect) {
+    comboState.current = 0;
+    return;
+  }
+  comboState.current += 1;
+  if (comboState.current > comboState.best) {
+    comboState.best = comboState.current;
+    comboState.bestAt = toLocalDateKey();
+  }
+}
+
+/** 이번 판에서 가장 길게 이어진 정답 수 */
+function getSessionMaxCombo(history) {
+  let best = 0;
+  let run = 0;
+  history.forEach((h) => {
+    run = h.isCorrect ? run + 1 : 0;
+    best = Math.max(best, run);
+  });
+  return best;
+}
+
+/** 학습현황의 최대 콤보 그래프(주·월·년)와 역대 최대 */
+async function renderComboStats(range) {
+  comboRange = range;
+  document.querySelectorAll('.combo-range-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.range === range));
+  const entries = await getComboHistory(range);
+  renderComboChart(entries, comboState);
+}
+
+/** 휴대폰의 공유하기 서랍을 연다(카톡·문자 등). 서랍이 없는 브라우저는 주소를 복사한다 */
+async function shareApp() {
+  const url = new URL('./', window.location.href).href;
+  const shareData = { title: 'NameQuiz', text: '산리오·티니핑 캐릭터 이름을 맞히는 퀴즈 앱', url };
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData);
+      return;
+    } catch (error) {
+      if (error?.name === 'AbortError') return;
+      console.warn('[Share] 공유 서랍 실패, 주소 복사로 바꿉니다:', error);
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    alert('주소를 복사했어요. 카톡이나 문자에 붙여 넣어 보내세요.');
+  } catch (error) {
+    alert(`공유하지 못했어요.\n${url}`);
+  }
+}
+
+const ACCENT_COLORS = ['pink', 'blue', 'green', 'purple', 'orange'];
+
+/** 테마색(강조색)을 화면 전체에 적용한다. 바탕·글자색은 그대로이고 강조 부분만 바뀐다 */
+function applyAccentColor(name) {
+  const accent = ACCENT_COLORS.includes(name) ? name : 'pink';
+  document.documentElement.dataset.accent = accent;
+  // index.html 이 다음에 열 때 설정을 읽기 전부터 같은 색으로 그리도록 기기에도 적어 둔다
+  try { localStorage.setItem('NAMEQUIZ_ACCENT', accent); } catch { /* 무시 */ }
+}
+
 async function openRemoteModalPopup(viewName, options = {}) {
   if (timerInterval && !isTimeUp) return;
 
@@ -1520,6 +1835,7 @@ async function openRemoteModalPopup(viewName, options = {}) {
         .replace('{{learningTime}}', String(userConfig.learningTime))
         .replace('{{MAX_POOL_SIZE}}', String(userConfig.MAX_POOL_SIZE))
         .replace('{{#if autoProgress}}checked{{/if}}', userConfig.autoProgress ? 'checked' : '')
+        .replace('{{#if weatherTheme}}checked{{/if}}', userConfig.weatherTheme !== false ? 'checked' : '')
         .replace('{{keybindingsConfig}}', () => kbHtml);
     }
 
@@ -1532,18 +1848,47 @@ async function openRemoteModalPopup(viewName, options = {}) {
       login: auth.currentUser ? '로그인 계정' : '간편 로그인'
     };
 
+    const isSetting = viewName === 'setting';
+    const isFullScreen = ['setting', 'leaderboard', 'progress', 'help'].includes(viewName);
+    const versionIsNew = isSetting && hasUnseenVersion();
+
     const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.innerHTML = `
+    overlay.className = isFullScreen ? 'modal-overlay full-screen' : 'modal-overlay';
+    overlay.innerHTML = isFullScreen ? `
+      <div class="modal-content">
+        <div class="modal-header full-screen-header">
+          <div class="full-screen-title">
+            ${isSetting ? `
+            <button type="button" class="setting-tool-btn install-app-btn install-has-dot" title="앱 설치" aria-label="앱 설치" hidden>
+              <span class="material-symbols-outlined">install_desktop</span>
+            </button>` : ''}
+            <h3 class="modal-title">${isSetting ? 'NameQuiz' : (viewTitles[viewName] || '안내')}</h3>
+          </div>
+          <div class="setting-toolbar">
+            ${isSetting ? `
+            <button type="button" class="setting-tool-btn" id="setting-inbox-btn" title="알림함" aria-label="알림함">
+              <span class="material-symbols-outlined">notifications</span>
+              <span class="inbox-unread-badge" hidden></span>
+            </button>
+            <button type="button" class="setting-tool-btn" id="setting-help-btn" title="앱 정보·도움말" aria-label="앱 정보·도움말">
+              <span class="material-symbols-outlined">info</span>
+              ${versionIsNew ? '<span class="setting-new-dot"></span>' : ''}
+            </button>
+            <button type="button" class="setting-tool-btn" id="setting-share-btn" title="공유하기" aria-label="공유하기">
+              <span class="material-symbols-outlined">share</span>
+            </button>` : ''}
+            <button type="button" class="modal-close setting-tool-btn" title="닫기" aria-label="닫기">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+        <div class="modal-body">${htmlContent}</div>
+      </div>
+    ` : `
       <div class="modal-content">
         <div class="modal-header">
           <h3 class="modal-title">${viewTitles[viewName] || '안내'}</h3>
           <div class="modal-header-actions">
-            ${viewName === 'setting' ? `
-              <button type="button" class="modal-icon-btn" id="setting-help-btn" title="도움말" aria-label="도움말">
-                <span class="material-symbols-outlined" style="font-size:18px;">question_mark</span>
-              </button>
-            ` : ''}
             <button type="button" class="modal-close" aria-label="닫기">&times;</button>
           </div>
         </div>
@@ -1597,8 +1942,13 @@ async function openRemoteModalPopup(viewName, options = {}) {
       };
 
       await refreshPokedexView(getActiveSeasonFilter());
-      const currentWeeklyStats = await getWeeklyStats(domain);
-      renderStudyStatsChart(currentWeeklyStats || { total: 0, history: {} });
+      await renderComboStats(comboRange);
+      overlay.querySelectorAll('.combo-range-tab').forEach((tab) => {
+        tab.addEventListener('click', (e) => {
+          e.stopPropagation();
+          renderComboStats(tab.dataset.range);
+        });
+      });
     }
 
     if (viewName === 'leaderboard') {
@@ -1618,7 +1968,54 @@ async function openRemoteModalPopup(viewName, options = {}) {
       renderLoginModalState(auth.currentUser);
     }
 
+    if (viewName === 'help') {
+      // QuizQuiz 자매품 홍보는 도움말 맨 위 (quiz_apps 목록에서 이 앱을 뺀 나머지)
+      overlay.querySelector('.modal-body')?.insertAdjacentHTML('afterbegin', renderSisterAppsHtml());
+      hydrateSisterApps(overlay);
+      overlay.querySelector('.modal-body')?.insertAdjacentHTML('beforeend', `
+        <div class="app-version-box">
+          <div><span>프로그램 버전</span><b>NameQuiz ${window.APP_VERSION || '-'}</b></div>
+          <div><span>빌드</span><b>${window.CACHE_BUST || '-'}</b></div>
+          <div><span>QuizApp Common GUI</span><b>${window.QUIZAPP_GUI_VERSION || '-'}</b></div>
+        </div>`);
+    }
+
     if (viewName === 'setting') {
+      markVersionSeen();
+      updateInboxBadge();
+      refreshInstallButtons();
+      overlay.querySelector('#setting-inbox-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openInboxModal({
+          onStartStudy: () => {
+            saveUserConfig(userConfig);
+            overlay.remove();
+            startStudyFromInbox();
+          }
+        });
+      });
+      overlay.querySelector('#setting-share-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        shareApp();
+      });
+
+      overlay.querySelector('#weather-theme')?.addEventListener('change', (e) => {
+        userConfig.weatherTheme = e.target.checked;
+        applyWeatherToInfoCard();
+      });
+
+      // 테마색(강조색)
+      const accentSwatches = overlay.querySelectorAll('.accent-swatch');
+      const markAccent = () => accentSwatches.forEach((sw) => sw.setAttribute('aria-checked', String(sw.dataset.accent === (userConfig.accentColor || 'pink'))));
+      markAccent();
+      accentSwatches.forEach((sw) => sw.addEventListener('click', (e) => {
+        e.stopPropagation();
+        userConfig.accentColor = sw.dataset.accent;
+        applyAccentColor(userConfig.accentColor);
+        markAccent();
+        saveUserConfig(userConfig);
+      }));
+
       overlay.querySelector('#setting-help-btn')?.addEventListener('click', (e) => {
         e.stopPropagation();
         saveUserConfig(userConfig);
@@ -1811,7 +2208,7 @@ window.changeLeaderboardDomain = async function (targetDomain) {
   window.targetLeaderboardDomain = targetDomain;
   const mode = window.currentLeaderboardMode || 'speedrun';
   if (mode === 'hints') {
-    ['tab-speedrun', 'tab-study'].forEach((id) => document.getElementById(id)?.classList.remove('active'));
+    ['tab-speedrun', 'tab-timeattack', 'tab-study'].forEach((id) => document.getElementById(id)?.classList.remove('active'));
     document.getElementById('tab-hints')?.classList.add('active');
     await renderHintHallOfFame();
     return;
@@ -1823,14 +2220,16 @@ window.changeLeaderboardDomain = async function (targetDomain) {
   }
   const rankings = mode === 'study'
     ? await getStudyRankings(10, targetDomain)
-    : await getGlobalRankings(10, targetDomain);
+    : mode === 'timeattack'
+      ? await getTimeAttackRankings(10, targetDomain)
+      : await getGlobalRankings(10, targetDomain);
   renderLeaderboardUI(rankings, mode);
 };
 
 window.switchLeaderboardMode = async function (mode) {
   window.currentLeaderboardMode = mode;
   if (mode === 'hints') {
-    ['tab-speedrun', 'tab-study'].forEach((id) => document.getElementById(id)?.classList.remove('active'));
+    ['tab-speedrun', 'tab-timeattack', 'tab-study'].forEach((id) => document.getElementById(id)?.classList.remove('active'));
     document.getElementById('tab-hints')?.classList.add('active');
     await renderHintHallOfFame();
     return;
@@ -1843,7 +2242,9 @@ window.switchLeaderboardMode = async function (mode) {
   }
   const rankings = mode === 'study'
     ? await getStudyRankings(10, targetDomain)
-    : await getGlobalRankings(10, targetDomain);
+    : mode === 'timeattack'
+      ? await getTimeAttackRankings(10, targetDomain)
+      : await getGlobalRankings(10, targetDomain);
   renderLeaderboardUI(rankings, mode);
 };
 
@@ -1907,13 +2308,13 @@ async function updateReviewCountBadge() {
   if (!badge) return;
 
   try {
+    // 학습에는 시즌과 상관없이 복습 캐릭터를 내므로 배지도 도메인 전체를 센다
     const domain = userConfig.currentDomain;
-    const seasonFilter = getActiveSeasonFilter();
     const dbData = await getAllProgress(domain) || {};
     const now = Date.now();
     let count = 0;
 
-    getCharacters(domain, seasonFilter).forEach((meta) => {
+    getCharacters(domain, 'all').forEach((meta) => {
       const saved = dbData[String(meta.charId)] || dbData[meta.charId];
       if (saved && isDueForReview(saved, now)) {
         count++;

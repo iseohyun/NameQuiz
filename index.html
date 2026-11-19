@@ -18,7 +18,11 @@
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <script>
     window.APP_VERSION = "v1.0.0";
-    window.CACHE_BUST = "20261119v9";
+    // 이 앱이 따르는 QuizApp Common GUI 판 (iseohyun.com 의 column/ai/quizapp-common-gui). 도움말 맨 아래에 보여 준다
+    window.QUIZAPP_GUI_VERSION = "v0.2.0";
+    // 테마색(강조색)을 설정을 읽기 전부터 적용한다 (main.js 의 applyAccentColor 가 적어 둠)
+    try { document.documentElement.dataset.accent = localStorage.getItem("NAMEQUIZ_ACCENT") || "pink"; } catch (e) { /* 무시 */ }
+    window.CACHE_BUST = "20261119v12";
 
     const cssLink = document.createElement("link");
     cssLink.rel = "stylesheet";
@@ -38,17 +42,20 @@
         "firebase-config",
         "keybind-manager",
         "legacy-migration",
+        "new-dot",
         "notification-handler",
         "notification-inbox",
         "hint-handler",
         "hint-seeds",
         "install-prompt",
+        "season-weather",
         "seasonal-stage",
         "sister-apps",
         "store",
         "trivia-generator",
         "ui-modal-handler",
-        "update-checker"
+        "update-checker",
+        "weather-layer"
       ];
       const imports = {};
       componentModules.forEach((name) => {
@@ -93,10 +100,6 @@
       </div>
 
       <div class="user-info-right">
-        <div class="menu-item" onclick="popupInbox()" title="알림함">
-          <span class="material-symbols-outlined">notifications</span>
-          <span id="inbox-unread-badge" class="inbox-unread-badge" style="display: none;"></span>
-        </div>
         <div class="menu-item" onclick="popupLeaderboard()" title="리더보드">
           <span class="material-symbols-outlined">leaderboard</span>
           <span class="keybind-badge" id="kb-badge-popupLeaderboard">5</span>
@@ -116,6 +119,7 @@
         </div>
         <div class="menu-item" onclick="popupSetting()" title="환경설정">
           <span class="material-symbols-outlined">settings</span>
+          <span id="setting-new-dot" class="setting-new-dot" hidden></span>
           <span class="keybind-badge" id="kb-badge-popupSetting">4</span>
         </div>
       </div>

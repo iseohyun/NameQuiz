@@ -1,9 +1,14 @@
-<div class="stats-panel-card">
-  <div class="stats-panel-header">
-    <span class="stats-panel-title">최근 일주일 학습량</span>
-    <span class="stats-panel-sub">총 학습: <strong id="total-study-time">0분</strong></span>
+<div class="combo-stats">
+  <div class="combo-stats-head">
+    <span class="combo-stats-title">최대 콤보</span>
+    <div class="combo-range-tabs" role="tablist">
+      <button type="button" class="combo-range-tab active" data-range="week">주</button>
+      <button type="button" class="combo-range-tab" data-range="month">월</button>
+      <button type="button" class="combo-range-tab" data-range="year">년</button>
+    </div>
   </div>
-  <div id="study-chart-container" class="study-chart-container"></div>
+  <div class="combo-all-time-row">역대 최대 <b id="combo-all-time">-</b></div>
+  <div id="combo-chart" class="combo-chart"></div>
 </div>
 
 <div class="stats-panel-card">

@@ -109,6 +109,22 @@
 <p id="notify-last" class="setting-notify-last" hidden></p>
 
 <div class="setting-row-inline">
+  <span class="setting-label">날씨 반영 <small class="setting-hint-inline">처음 화면 계절 무대에 접속 위치(IP)로 짐작한 날씨를 겹칩니다. 끄면 위치를 묻지 않습니다.</small></span>
+  <input type="checkbox" id="weather-theme" class="setting-checkbox" {{#if weatherTheme}}checked{{/if}}>
+</div>
+
+<div class="setting-row-inline">
+  <span class="setting-label">테마색</span>
+  <div class="accent-swatches" role="radiogroup" aria-label="테마색">
+    <button type="button" class="accent-swatch" role="radio" data-accent="pink" style="background:#ec4899" title="분홍" aria-label="분홍"></button>
+    <button type="button" class="accent-swatch" role="radio" data-accent="blue" style="background:#2563eb" title="파랑" aria-label="파랑"></button>
+    <button type="button" class="accent-swatch" role="radio" data-accent="green" style="background:#16a34a" title="초록" aria-label="초록"></button>
+    <button type="button" class="accent-swatch" role="radio" data-accent="purple" style="background:#7c3aed" title="보라" aria-label="보라"></button>
+    <button type="button" class="accent-swatch" role="radio" data-accent="orange" style="background:#ea580c" title="주황" aria-label="주황"></button>
+  </div>
+</div>
+
+<div class="setting-row-inline">
   <span class="setting-label">오답 시 정답 안내</span>
   <button type="button" id="btn-error-show" class="setting-toggle-btn">표시</button>
 </div>
