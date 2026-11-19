@@ -55,8 +55,6 @@ import {
   mergeGuestCombo,
   submitSpeedrunRanking,
   getGlobalRankings,
-  getStudyRankings,
-  submitStudyRanking,
   submitTimeAttackRanking,
   getTimeAttackRankings,
   toPersistedSchema,
@@ -643,6 +641,7 @@ function renderQuestionPromptAndOptions(optionsContainer, onAnswerCallback) {
   const targetMeta = getCharacterById(target.charId, domain) || target;
 
   if (promptCard && promptBody && typeChip) {
+    typeChip.hidden = false;
     if (questionType === 'trivia') {
       promptCard.className = 'question-prompt-card prompt-trivia-mode';
       typeChip.innerText = categoryChip || '❓ 프로필 질문 퀴즈';
@@ -653,7 +652,9 @@ function renderQuestionPromptAndOptions(optionsContainer, onAnswerCallback) {
       promptBody.innerHTML = `<img src="${targetMeta.imageUrl}" alt="출제 캐릭터" class="prompt-char-img" />`;
     } else {
       promptCard.className = 'question-prompt-card prompt-name-mode';
-      typeChip.innerText = '🏷️ 알맞은 캐릭터를 고르세요';
+      // 이름→캐릭터 모드: 안내 문구가 문제(이름)를 가려서 칩을 숨긴다.
+      typeChip.innerText = '';
+      typeChip.hidden = true;
       promptBody.innerHTML = `<div class="prompt-char-name">${getCharacterNameHtml(targetMeta, userConfig.nameLang)}</div>`;
     }
   }
@@ -852,23 +853,8 @@ async function terminateTriviaSetSession(isCompletedAll = false) {
 
   resetToMainModeSelection();
 
-  // 질문 모드는 도감 진도·학습 현황 통계(해금/숙련도/일일 학습시간)에 일체 영향을 주지 않음
-  try {
-    if (isCompletedAll && savedMode === 'record' && reportSnapshot.totalCount > 0 && canSubmitRanking()) {
-      const accuracy = Math.round((reportSnapshot.correctCount / reportSnapshot.totalCount) * 100);
-      const { rankingDomain, playerName } = resolveRankingMetadata();
-      await submitSpeedrunRanking(
-        rankingDomain,
-        reportSnapshot.totalCount,
-        reportSnapshot.elapsedSeconds,
-        accuracy,
-        playerName
-      );
-    }
-  } catch (err) {
-    console.warn('[Trivia] 기록 등록 안내:', err.message || err);
-  }
-
+  // 질문 모드는 도감 진도·학습 현황 통계(해금/숙련도/일일 학습시간)에 영향을 주지 않고,
+  // 두 타임어택(20문제·30초)이 아니므로 순위에도 올리지 않는다
   if (isCompletedAll && reportSnapshot.logs.length > 0) {
     openTriviaReportModal({
       ...reportSnapshot,
@@ -1081,8 +1067,9 @@ async function terminateQuizSession() {
     const correctCount = sessionHistory.filter((h) => h.isCorrect).length;
     const accuracy = sessionHistory.length > 0 ? Math.round((correctCount / sessionHistory.length) * 100) : 0;
     const { rankingDomain, playerName } = resolveRankingMetadata();
-    if (canSubmitRanking()) {
-      await submitStudyRanking(rankingDomain, correctCount, playedTime, accuracy, playerName);
+    // 학습 시간을 30초로 두고 끝까지 했으면 30초 타임어택 기록으로 본다(본인 최고 기록보다 좋을 때만 바뀜)
+    if (canSubmitRanking() && userConfig.learningTime === TIME_ATTACK_SECONDS && timeLeft <= 0) {
+      await submitTimeAttackRanking(rankingDomain, correctCount, sessionHistory.length, accuracy, playerName);
     }
     // 게스트의 로그인 안내는 학습 결과표 아래에 함께 나온다(showStudySummary)
   } catch (dbError) {
@@ -1124,7 +1111,8 @@ async function startSpeedrunSession() {
       hasHistory: (saved.totalSolved || 0) > 0,
       isEligibleForPromotion: isDueForReview(saved, now),
       hasBeenPromotedThisSession: false,
-      isUnlocked: (saved.stage || 0) > 0
+      // 이미 공부한(한 번이라도 푼) 문제는 단계가 0이어도 기록 모드 결과를 학습 데이터에 쌓는다
+      isUnlocked: (saved.totalSolved || 0) > 0 || (saved.stage || 0) > 0
     };
   });
 
@@ -1958,8 +1946,8 @@ async function openRemoteModalPopup(viewName, options = {}) {
       const domainSelect = document.getElementById('leaderboard-domain-select');
       if (domainSelect) domainSelect.value = targetFilter;
 
-      const rankings = mode === 'study'
-        ? await getStudyRankings(10, targetFilter)
+      const rankings = mode === 'timeattack'
+        ? await getTimeAttackRankings(10, targetFilter)
         : await getGlobalRankings(10, targetFilter);
       renderLeaderboardUI(rankings, mode);
     }
@@ -2208,28 +2196,26 @@ window.changeLeaderboardDomain = async function (targetDomain) {
   window.targetLeaderboardDomain = targetDomain;
   const mode = window.currentLeaderboardMode || 'speedrun';
   if (mode === 'hints') {
-    ['tab-speedrun', 'tab-timeattack', 'tab-study'].forEach((id) => document.getElementById(id)?.classList.remove('active'));
+    ['tab-speedrun', 'tab-timeattack'].forEach((id) => document.getElementById(id)?.classList.remove('active'));
     document.getElementById('tab-hints')?.classList.add('active');
     await renderHintHallOfFame();
     return;
   }
   const listContainer = document.getElementById('leaderboard-list');
   if (listContainer) {
-    const colCount = mode === 'study' ? 7 : 6;
+    const colCount = 6;
     listContainer.innerHTML = `<tr><td colspan="${colCount}" class="leaderboard-empty">데이터를 불러오는 중입니다...</td></tr>`;
   }
-  const rankings = mode === 'study'
-    ? await getStudyRankings(10, targetDomain)
-    : mode === 'timeattack'
-      ? await getTimeAttackRankings(10, targetDomain)
-      : await getGlobalRankings(10, targetDomain);
+  const rankings = mode === 'timeattack'
+    ? await getTimeAttackRankings(10, targetDomain)
+    : await getGlobalRankings(10, targetDomain);
   renderLeaderboardUI(rankings, mode);
 };
 
 window.switchLeaderboardMode = async function (mode) {
   window.currentLeaderboardMode = mode;
   if (mode === 'hints') {
-    ['tab-speedrun', 'tab-timeattack', 'tab-study'].forEach((id) => document.getElementById(id)?.classList.remove('active'));
+    ['tab-speedrun', 'tab-timeattack'].forEach((id) => document.getElementById(id)?.classList.remove('active'));
     document.getElementById('tab-hints')?.classList.add('active');
     await renderHintHallOfFame();
     return;
@@ -2237,14 +2223,12 @@ window.switchLeaderboardMode = async function (mode) {
   const targetDomain = window.targetLeaderboardDomain || getDefaultLeaderboardFilter();
   const listContainer = document.getElementById('leaderboard-list');
   if (listContainer) {
-    const colCount = mode === 'study' ? 7 : 6;
+    const colCount = 6;
     listContainer.innerHTML = `<tr><td colspan="${colCount}" class="leaderboard-empty">데이터를 불러오는 중입니다...</td></tr>`;
   }
-  const rankings = mode === 'study'
-    ? await getStudyRankings(10, targetDomain)
-    : mode === 'timeattack'
-      ? await getTimeAttackRankings(10, targetDomain)
-      : await getGlobalRankings(10, targetDomain);
+  const rankings = mode === 'timeattack'
+    ? await getTimeAttackRankings(10, targetDomain)
+    : await getGlobalRankings(10, targetDomain);
   renderLeaderboardUI(rankings, mode);
 };
 

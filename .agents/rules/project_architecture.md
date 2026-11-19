@@ -23,6 +23,6 @@
 - `localStorage` 키 접두어는 `NAMEQUIZ_`를 사용하여 동일 출처(Origin)에서 구동되는 `CharQuiz`와 데이터가 충돌하지 않도록 격리한다.
 - 날짜 키는 `components/date-utils.js`의 `toLocalDateKey()`(로컬 날짜 기준)를 사용한다.
 - Firestore 퀴즈 앱 공용 프로젝트(`quizquiz-quiz`, 규칙·함수는 `C:\git\QuizQuiz`) 저장 시:
-  - 순위는 `namequiz_speedrun_rankings`, `namequiz_study_rankings`, 힌트는 `name_hints`·`name_hint_likes` 컬렉션을 쓴다.
+  - 순위는 `namequiz_speedrun_rankings`(20문제)·`namequiz_timeattack_rankings`(30초)에 사람·도메인마다 문서 하나(`uid_domain`, 최고 기록), 힌트는 `name_hints`·`name_hint_likes` 컬렉션을 쓴다.
   - 사용자 환경설정은 `users/{uid}` 문서의 `namequizConfig` 필드에 저장한다.
   - 캐릭터 진도는 `users/{uid}/progress/{domain}/chars/{charId}` 경로에 마스터 `charId` 기준으로 저장하여 시즌 필터 전환 시에도 학습 진도가 일관되게 공유되도록 유지한다.

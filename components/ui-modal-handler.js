@@ -504,7 +504,7 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
   const listContainer = document.getElementById('leaderboard-list');
   if (!listContainer) return;
 
-  ['speedrun', 'timeattack', 'study', 'hints'].forEach((tabMode) => {
+  ['speedrun', 'timeattack', 'hints'].forEach((tabMode) => {
     document.getElementById(`tab-${tabMode}`)?.classList.toggle('active', tabMode === mode);
   });
 
@@ -519,16 +519,6 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
            <th>정답률</th>
            <th>완료 시각</th>
          </tr>`
-      : mode === 'study'
-      ? `<tr>
-           <th>순위</th>
-           <th>아이디</th>
-           <th>도메인 / 유형</th>
-           <th>정답수</th>
-           <th>소요시간</th>
-           <th>정답률</th>
-           <th>완료시각</th>
-         </tr>`
       : `<tr>
            <th>순위</th>
            <th>아이디</th>
@@ -540,7 +530,7 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
   }
 
   listContainer.innerHTML = '';
-  const colCount = mode === 'study' ? 7 : 6;
+  const colCount = 6;
 
   if (!rankings || rankings.length === 0) {
     listContainer.innerHTML = `<tr><td colspan="${colCount}" class="leaderboard-empty">등록된 기록이 없습니다. 첫 번째 주인공이 되어 보세요!</td></tr>`;
@@ -569,20 +559,6 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
           <td class="lb-name">${safeName}</td>
           <td>${domainDisplay}</td>
           <td class="lb-correct">${Number(entry.correctCount) || 0} <small>(${Number(entry.solvedCount) || 0})</small></td>
-          <td>${Number(entry.accuracy) || 0}%</td>
-          <td class="lb-date">${safeUpdatedAt}</td>
-        </tr>
-      `;
-    }
-
-    if (mode === 'study') {
-      return `
-        <tr class="${highlightClass}">
-          <td class="${rankClass}">${rank}</td>
-          <td class="lb-name">${safeName}</td>
-          <td>${domainDisplay}</td>
-          <td class="lb-correct">${Number(entry.correctCount) || 0}</td>
-          <td class="lb-time">${safeElapsed}</td>
           <td>${Number(entry.accuracy) || 0}%</td>
           <td class="lb-date">${safeUpdatedAt}</td>
         </tr>

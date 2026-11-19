@@ -406,30 +406,63 @@ function formatRankingDoc(docSnap) {
   };
 }
 
+/* ==========================================================================
+   순위 (20문제 · 30초 타임어택)
+   - 사람·도메인마다 문서 하나(`uid_domain`)에 본인 최고 기록 1개만 둔다.
+   - 20문제: 정답률 높은 순, 같으면 빨리 끝낸 순. 문제 수가 정확히 20개인 판만 받는다.
+   - 30초: 정답률 높은 순, 같으면 맞힌 수 많은 순(마구 눌러 맞힌 수만 많은 기록이 위로 오지 않게).
+   ========================================================================== */
+export const SPEEDRUN_RANKING_QUESTION_COUNT = 20;
+
+const compareSpeedrun = (a, b) =>
+  ((b.accuracy || 0) - (a.accuracy || 0)) || ((a.elapsedTime || 0) - (b.elapsedTime || 0)) || ((a.rawUpdatedAt ?? a.updatedAt ?? 0) - (b.rawUpdatedAt ?? b.updatedAt ?? 0));
+const compareTimeAttack = (a, b) =>
+  ((b.accuracy || 0) - (a.accuracy || 0)) || ((b.correctCount || 0) - (a.correctCount || 0)) || ((a.rawUpdatedAt ?? a.updatedAt ?? 0) - (b.rawUpdatedAt ?? b.updatedAt ?? 0));
+
+/** 좋은 순으로 늘어놓고 사람·도메인마다 첫 기록만 남긴다(옛 문서가 남아 있어도 한 줄만 보이게) */
+const keepBestPerPlayer = (rows, compare) => {
+  const seen = new Set();
+  return [...rows].sort(compare).filter((r) => {
+    const key = `${r.uid}_${r.domain}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+/** 본인 최고 기록보다 좋을 때만 `uid_domain` 문서를 고쳐 쓴다. @returns {Promise<string|null>} 고쳐 썼으면 문서 ID */
+const saveIfPersonalBest = async (collectionName, record, compare) => {
+  const docId = `${currentUserUid}_${record.domain}`;
+  const ref = doc(db, collectionName, docId);
+  const snap = await getDoc(ref);
+  if (snap.exists() && compare(record, snap.data()) >= 0) return null;
+  await setDoc(ref, record);
+  return docId;
+};
+
+/**
+ * 20문제 타임어택 기록. 20문제가 아닌 판은 받지 않고, 본인 최고 기록보다 좋을 때만 고쳐 쓴다.
+ * @returns {Promise<string|null>} 새 최고 기록이면 문서 ID
+ */
 export const submitSpeedrunRanking = async (rankingDomain, charCount, elapsedTime, accuracy, customName = null) => {
-  if (!currentUserUid) return null;
-
-  const displayName = customName || document.getElementById('profile-name')?.innerText || '게스트';
-  const docId = `${currentUserUid}_${rankingDomain}_${Date.now()}`;
-  const docRef = doc(db, 'namequiz_speedrun_rankings', docId);
-
+  if (!currentUserUid || charCount !== SPEEDRUN_RANKING_QUESTION_COUNT) return null;
   try {
-    await setDoc(docRef, {
+    return await saveIfPersonalBest('namequiz_speedrun_rankings', {
       uid: currentUserUid,
-      name: displayName,
+      name: customName || document.getElementById('profile-name')?.innerText || '게스트',
       domain: rankingDomain,
       charCount,
       elapsedTime,
       accuracy,
       updatedAt: Date.now()
-    });
-    return docId;
+    }, compareSpeedrun);
   } catch (err) {
     console.warn('[LocalFirst] 스피드런 랭킹 등록 생략:', err.message);
     return null;
   }
 };
 
+/** 20문제 순위 (사람·도메인마다 최고 기록 1개) */
 export const getGlobalRankings = async (limitCount = 10, targetFilter = 'all_sanrio') => {
   const rankingsRef = collection(db, 'namequiz_speedrun_rankings');
   const domainsToFetch = resolveLeaderboardQueryDomains(targetFilter);
@@ -437,82 +470,15 @@ export const getGlobalRankings = async (limitCount = 10, targetFilter = 'all_san
   try {
     const snapshots = await Promise.all(
       domainsToFetch.map((dom) =>
-        getDocs(query(rankingsRef, where('domain', '==', dom), orderBy('accuracy', 'desc'), orderBy('elapsedTime', 'asc'), limit(limitCount)))
+        getDocs(query(rankingsRef, where('domain', '==', dom), orderBy('accuracy', 'desc'), orderBy('elapsedTime', 'asc'), limit(300)))
       )
     );
-    const merged = snapshots.flatMap((snap) => snap.docs.map(formatRankingDoc));
-    merged.sort((a, b) => {
-      if (b.accuracy !== a.accuracy) return (b.accuracy || 0) - (a.accuracy || 0);
-      if (a.elapsedTime !== b.elapsedTime) return (a.elapsedTime || 0) - (b.elapsedTime || 0);
-      return (a.rawUpdatedAt || 0) - (b.rawUpdatedAt || 0);
-    });
-    return merged.slice(0, limitCount);
+    const rows = snapshots
+      .flatMap((snap) => snap.docs.map(formatRankingDoc))
+      .filter((r) => r.charCount === SPEEDRUN_RANKING_QUESTION_COUNT);
+    return keepBestPerPlayer(rows, compareSpeedrun).slice(0, limitCount);
   } catch (error) {
     console.error('[Leaderboard] 스피드런 랭킹 조회 실패:', error);
-    return [];
-  }
-};
-
-export const submitStudyRanking = async (rankingDomain, correctCount, elapsedTime, accuracy, customName = null) => {
-  if (!currentUserUid || correctCount <= 0) return false;
-
-  const displayName = customName || document.getElementById('profile-name')?.innerText || '게스트';
-  const docId = `${currentUserUid}_${rankingDomain}`;
-  const docRef = doc(db, 'namequiz_study_rankings', docId);
-
-  try {
-    const docSnap = await getDoc(docRef);
-    let shouldUpdate = false;
-
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const existingCorrect = data.correctCount || 0;
-      const existingTime = data.elapsedTime || Infinity;
-      if (correctCount > existingCorrect || (correctCount === existingCorrect && elapsedTime < existingTime)) {
-        shouldUpdate = true;
-      }
-    } else {
-      shouldUpdate = true;
-    }
-
-    if (shouldUpdate) {
-      await setDoc(docRef, {
-        uid: currentUserUid,
-        name: displayName,
-        domain: rankingDomain,
-        correctCount,
-        elapsedTime,
-        accuracy,
-        updatedAt: Date.now()
-      });
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.warn('[LocalFirst] 학습모드 랭킹 저장 생략:', error.message);
-    return false;
-  }
-};
-
-export const getStudyRankings = async (limitCount = 10, targetFilter = 'all_sanrio') => {
-  const rankingsRef = collection(db, 'namequiz_study_rankings');
-  const domainsToFetch = resolveLeaderboardQueryDomains(targetFilter);
-
-  try {
-    const snapshots = await Promise.all(
-      domainsToFetch.map((dom) =>
-        getDocs(query(rankingsRef, where('domain', '==', dom), orderBy('correctCount', 'desc'), orderBy('elapsedTime', 'asc'), limit(limitCount)))
-      )
-    );
-    const merged = snapshots.flatMap((snap) => snap.docs.map(formatRankingDoc));
-    merged.sort((a, b) => {
-      if (b.correctCount !== a.correctCount) return (b.correctCount || 0) - (a.correctCount || 0);
-      if (a.elapsedTime !== b.elapsedTime) return (a.elapsedTime || 0) - (b.elapsedTime || 0);
-      return (a.rawUpdatedAt || 0) - (b.rawUpdatedAt || 0);
-    });
-    return merged.slice(0, limitCount);
-  } catch (error) {
-    console.error('[Leaderboard] 학습 랭킹 조회 실패:', error);
     return [];
   }
 };
@@ -761,25 +727,23 @@ export const mergeGuestCombo = async () => {
 };
 
 /**
- * 기록 모드 「30초 타임어택」 기록 한 건. 기록마다 새 문서(namequiz_timeattack_rankings, 로그인한 본인만).
- * @returns {Promise<string|null>} 문서 ID
+ * 30초 타임어택 기록. 기록 모드 30초와, 학습 시간을 30초로 두고 끝까지 한 학습 모드가 함께 쓴다.
+ * 본인 최고 기록(정답률 → 맞힌 수)보다 좋을 때만 고쳐 쓴다.
+ * @returns {Promise<string|null>} 새 최고 기록이면 문서 ID
  */
 export const submitTimeAttackRanking = async (rankingDomain, correctCount, solvedCount, accuracy, customName = null) => {
-  if (!currentUserUid) return null;
-  const displayName = customName || document.getElementById('profile-name')?.innerText || '게스트';
-  const docId = `${currentUserUid}_${rankingDomain}_${Date.now()}`;
+  if (!currentUserUid || !(solvedCount > 0)) return null;
   try {
-    await setDoc(doc(db, 'namequiz_timeattack_rankings', docId), {
+    return await saveIfPersonalBest('namequiz_timeattack_rankings', {
       uid: currentUserUid,
-      name: displayName,
+      name: customName || document.getElementById('profile-name')?.innerText || '게스트',
       domain: rankingDomain,
       correctCount,
       solvedCount,
       accuracy,
       durationSec: 30,
       updatedAt: Date.now()
-    });
-    return docId;
+    }, compareTimeAttack);
   } catch (err) {
     console.warn('[Leaderboard] 30초 타임어택 기록 등록 생략:', err.message);
     return null;
@@ -787,16 +751,15 @@ export const submitTimeAttackRanking = async (rankingDomain, correctCount, solve
 };
 
 /**
- * 30초 타임어택 순위. 맞힌 수가 많은 순, 같으면 정답률 순. 복합 인덱스 없이 맞힌 수 순으로 넉넉히 읽고 도메인은 화면에서 거른다.
+ * 30초 타임어택 순위. 정답률 높은 순, 같으면 맞힌 수 많은 순. 사람·도메인마다 최고 기록 1개.
+ * 복합 인덱스 없이 정답률 순으로 넉넉히 읽고 도메인은 화면에서 거른다.
  */
 export const getTimeAttackRankings = async (limitCount = 10, targetFilter = 'all_sanrio') => {
   const domains = new Set(resolveLeaderboardQueryDomains(targetFilter));
   try {
-    const snap = await getDocs(query(collection(db, 'namequiz_timeattack_rankings'), orderBy('correctCount', 'desc'), limit(300)));
-    return snap.docs
-      .map(formatRankingDoc)
-      .filter((r) => domains.has(r.domain))
-      .sort((a, b) => (b.correctCount - a.correctCount) || (b.accuracy - a.accuracy) || (a.rawUpdatedAt - b.rawUpdatedAt))
+    const snap = await getDocs(query(collection(db, 'namequiz_timeattack_rankings'), orderBy('accuracy', 'desc'), limit(500)));
+    const rows = snap.docs.map(formatRankingDoc).filter((r) => domains.has(r.domain));
+    return keepBestPerPlayer(rows, compareTimeAttack)
       .slice(0, limitCount)
       .map((r) => ({ ...r, elapsedStr: '00:30' }));
   } catch (error) {
