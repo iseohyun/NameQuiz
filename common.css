@@ -3660,6 +3660,32 @@ html[data-accent="orange"] {
 }
 
 /* 결과 창: 게스트에게 로그인 안내 */
+/* 타임어택 결과 창의 「결과 공유하기」·「순위 보기」 단추 (카톡·문자 등 공유 서랍) */
+.share-result-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.share-result-btn {
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  padding: 8px 18px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.share-result-btn:hover {
+  background: var(--accent);
+  color: #ffffff;
+}
+
 .ranking-login-note {
   display: flex;
   align-items: center;
@@ -3670,7 +3696,7 @@ html[data-accent="orange"] {
   background: var(--accent-soft);
   border: 1px solid var(--accent-border);
   font-size: 0.8rem;
-  color: var(--accent-deep);
+  color: var(--accent-strong);
   line-height: 1.45;
 }
 

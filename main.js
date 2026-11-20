@@ -1237,21 +1237,72 @@ async function terminateSpeedrunSession() {
     await updateDailyStudyTime(srElapsedTime, domain);
     updateReviewCountBadge();
 
-    if (isCompletedAll && !canSubmitRanking()) {
-      showGuestRankingNotice();
-    } else if (isCompletedAll) {
+    if (isCompletedAll) {
       const accuracy = Math.round((srCorrectCount / srTotalCount) * 100);
-      const { rankingDomain, playerName } = resolveRankingMetadata();
-      const recordId = await submitSpeedrunRanking(rankingDomain, srTotalCount, srElapsedTime, accuracy, playerName);
-      if (recordId) {
-        window.highlightRecordId = recordId;
-        window.highlightRemaining = 1;
+      const loggedIn = canSubmitRanking();
+      if (loggedIn) {
+        const { rankingDomain, playerName } = resolveRankingMetadata();
+        const recordId = await submitSpeedrunRanking(rankingDomain, srTotalCount, srElapsedTime, accuracy, playerName);
+        if (recordId) {
+          window.highlightRecordId = recordId;
+          window.highlightRemaining = 1;
+        }
       }
-      window.popupLeaderboard(getDefaultLeaderboardFilter(), 'speedrun');
+      const timeStr = formatTime(srElapsedTime).replace(/^00:/, '');
+      showTimeAttackResultOverlay({
+        title: `${srTotalCount}문제 타임어택`,
+        resultHtml: `<strong>${timeStr}</strong>`,
+        note: `${srTotalCount}문제 · 맞힘 ${srCorrectCount}개 · 정답률 ${accuracy}%`,
+        shareText: `NameQuiz ${srTotalCount}문제 타임어택 ${srElapsedTime >= 60 ? `${Math.floor(srElapsedTime / 60)}분 ` : ''}${srElapsedTime % 60}초 완주! 정답률 ${accuracy}% (${srCorrectCount}/${srTotalCount}) 나도 도전해 봐!`,
+        onLeaderboard: loggedIn ? () => window.popupLeaderboard(getDefaultLeaderboardFilter(), 'speedrun') : null
+      });
     }
   } catch (err) {
     console.error('기록 모드 정산 중 예외 발생:', err);
   }
+}
+
+/**
+ * 타임어택(20문제·30초) 결과 창. 누구에게나 「결과 공유하기」(카톡·문자 등 공유 서랍)가 있고,
+ * 게스트에게는 로그인 안내, 로그인한 사람에게는 「순위 보기」가 붙는다.
+ */
+function showTimeAttackResultOverlay({ title, resultHtml, note, shareText, onLeaderboard = null }) {
+  const loginNote = canSubmitRanking() ? '' : `
+      <div class="ranking-login-note">
+        <span>로그인하면 지금까지 게스트로 학습한 기록이 계정에 합쳐지고, 다음 기록부터 리더보드에도 올라갑니다.</span>
+        <button type="button" class="ranking-login-btn">로그인</button>
+      </div>`;
+  const leaderboardBtn = onLeaderboard ? '<button type="button" class="share-result-btn result-leaderboard-btn">🏆 순위 보기</button>' : '';
+  const overlay = document.createElement('div');
+  overlay.className = 'inbox-overlay info-overlay';
+  overlay.innerHTML = `
+    <div class="inbox-card" role="dialog" aria-label="${escapeHtml(title)} 결과">
+      <div class="inbox-header">
+        <h4>${escapeHtml(title)}</h4>
+        <button type="button" class="inbox-close" aria-label="닫기">&times;</button>
+      </div>
+      <div class="info-overlay-body">
+        <div class="timeattack-result">${resultHtml}</div>
+        <p class="study-summary-note">${escapeHtml(note)}</p>
+        <div class="share-result-row">
+          <button type="button" class="share-result-btn result-share-btn">📤 결과 공유하기</button>
+          ${leaderboardBtn}
+        </div>
+        ${loginNote}
+      </div>
+    </div>`;
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay || e.target.closest('.inbox-close')) overlay.remove();
+    else if (e.target.closest('.result-share-btn')) shareApp(shareText);
+    else if (e.target.closest('.result-leaderboard-btn')) {
+      overlay.remove();
+      onLeaderboard();
+    } else if (e.target.closest('.ranking-login-btn')) {
+      overlay.remove();
+      window.popupLogin();
+    }
+  });
+  document.body.appendChild(overlay);
 }
 
 /** 30초 타임어택을 마친다. 시간이 다 됐으면 결과 창을 띄우고(게스트는 로그인 안내), 로그인했으면 30초 순위에 올린다 */
@@ -1268,33 +1319,12 @@ async function terminateTimeAttackSession() {
 
   const accuracy = solved > 0 ? Math.round((correct / solved) * 100) : 0;
   if (finishedInTime && solved > 0) {
-    const loginNote = canSubmitRanking() ? '' : `
-      <div class="ranking-login-note">
-        <span>로그인하면 지금까지 게스트로 학습한 기록이 계정에 합쳐지고, 다음 기록부터 리더보드에도 올라갑니다.</span>
-        <button type="button" class="ranking-login-btn">로그인</button>
-      </div>`;
-    const overlay = document.createElement('div');
-    overlay.className = 'inbox-overlay info-overlay';
-    overlay.innerHTML = `
-      <div class="inbox-card" role="dialog" aria-label="30초 타임어택 결과">
-        <div class="inbox-header">
-          <h4>30초 타임어택</h4>
-          <button type="button" class="inbox-close" aria-label="닫기">&times;</button>
-        </div>
-        <div class="info-overlay-body">
-          <div class="timeattack-result"><strong>${correct}</strong><span>개 맞힘</span></div>
-          <p class="study-summary-note">푼 문제 ${solved}개 · 정답률 ${accuracy}%</p>
-          ${loginNote}
-        </div>
-      </div>`;
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay || e.target.closest('.inbox-close')) overlay.remove();
-      else if (e.target.closest('.ranking-login-btn')) {
-        overlay.remove();
-        window.popupLogin();
-      }
+    showTimeAttackResultOverlay({
+      title: '30초 타임어택',
+      resultHtml: `<strong>${correct}</strong><span>개 맞힘</span>`,
+      note: `푼 문제 ${solved}개 · 정답률 ${accuracy}%`,
+      shareText: `NameQuiz 30초 타임어택 ${correct}개 맞힘! 정답률 ${accuracy}% (${correct}/${solved}) 나도 도전해 봐!`
     });
-    document.body.appendChild(overlay);
   }
 
   try {
@@ -1765,10 +1795,13 @@ async function renderComboStats(range) {
   renderComboChart(entries, comboState);
 }
 
-/** 휴대폰의 공유하기 서랍을 연다(카톡·문자 등). 서랍이 없는 브라우저는 주소를 복사한다 */
-async function shareApp() {
+/**
+ * 휴대폰의 공유하기 서랍을 연다(카톡·문자 등). 서랍이 없는 브라우저는 주소를 복사한다.
+ * resultText 를 주면 타임어택 결과 문구를 함께 보낸다(복사할 때도 문구 + 주소).
+ */
+async function shareApp(resultText = null) {
   const url = new URL('./', window.location.href).href;
-  const shareData = { title: 'NameQuiz', text: '산리오·티니핑 캐릭터 이름을 맞히는 퀴즈 앱', url };
+  const shareData = { title: 'NameQuiz', text: resultText || '산리오·티니핑 캐릭터 이름을 맞히는 퀴즈 앱', url };
   if (navigator.share) {
     try {
       await navigator.share(shareData);
@@ -1779,8 +1812,8 @@ async function shareApp() {
     }
   }
   try {
-    await navigator.clipboard.writeText(url);
-    alert('주소를 복사했어요. 카톡이나 문자에 붙여 넣어 보내세요.');
+    await navigator.clipboard.writeText(resultText ? `${resultText}\n${url}` : url);
+    alert(resultText ? '결과와 주소를 복사했어요. 카톡이나 문자에 붙여 넣어 보내세요.' : '주소를 복사했어요. 카톡이나 문자에 붙여 넣어 보내세요.');
   } catch (error) {
     alert(`공유하지 못했어요.\n${url}`);
   }
