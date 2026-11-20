@@ -18,6 +18,14 @@ import {
   buildRankingDomainKey
 } from './components/store.js';
 import { getTrailingStreak, showCombo } from './components/combo-fx.js';
+import {
+  TARGET_ACCURACY_STEPS,
+  DEFAULT_TARGET_ACCURACY,
+  normalizeTargetAccuracy,
+  planNewItems,
+  recordStudyAnswer,
+  getRecentStudyAccuracy
+} from './components/adaptive-progress.js';
 import { renderSisterAppsHtml, hydrateSisterApps } from './components/sister-apps.js';
 import { toLocalDateKey } from './components/date-utils.js';
 import { WEATHER_META, getApproxWeather } from './components/season-weather.js';
@@ -879,7 +887,9 @@ async function startQuizSession() {
   const domain = userConfig.currentDomain;
   const seasonFilter = getActiveSeasonFilter();
   const dbData = await getAllProgress(domain);
-  currentPool = initSessionPool(domain, dbData, userConfig.autoProgress, userConfig.MAX_POOL_SIZE, seasonFilter);
+  // 자동 진도: 최근 학습 정답률을 목표 정답률과 견줘 새 캐릭터 수를 정한다 (components/adaptive-progress.js)
+  const progressPlan = planNewItems(userConfig.autoProgress, userConfig.targetAccuracy);
+  currentPool = initSessionPool(domain, dbData, progressPlan, userConfig.MAX_POOL_SIZE, seasonFilter);
 
   // 복습은 항상 포함: 시즌을 골라 두었어도 다른 시즌의 복습 때가 된 캐릭터를 함께 낸다(새 캐릭터는 고른 시즌에서만).
   // 풀이 넘치면 복습 캐릭터를 먼저 남긴다. (QuizApp Common GUI 「복습은 항상 포함」)
@@ -890,7 +900,7 @@ async function startQuizSession() {
       const poolLimit = Math.max(4, Number(userConfig.MAX_POOL_SIZE) || 10);
       currentPool = [...currentPool, ...dueElsewhere]
         .sort(() => Math.random() - 0.5)
-        .sort((a, b) => Number(Boolean(b.isEligibleForPromotion)) - Number(Boolean(a.isEligibleForPromotion)))
+        .sort((a, b) => Number(Boolean(b.isEligibleForPromotion || b.isForcedNew)) - Number(Boolean(a.isEligibleForPromotion || a.isForcedNew)))
         .slice(0, Math.max(poolLimit, currentPool.length));
     }
   }
@@ -944,6 +954,7 @@ async function handleUserAnswer(selectedCharId, latency, clickedBtn) {
 
   const target = currentQuestion.target;
   const isCorrect = Number(selectedCharId) === Number(target.charId);
+  recordStudyAnswer(isCorrect, latency); // 목표 정답률에 맞춘 자동 진도용 (늦은 정답은 오답)
 
   const updatedItem = calculateReviewState({ ...target }, isCorrect, latency);
   const poolIdx = currentPool.findIndex((p) => p.charId === target.charId);
@@ -1856,6 +1867,9 @@ async function openRemoteModalPopup(viewName, options = {}) {
         .replace('{{learningTime}}', String(userConfig.learningTime))
         .replace('{{MAX_POOL_SIZE}}', String(userConfig.MAX_POOL_SIZE))
         .replace('{{#if autoProgress}}checked{{/if}}', userConfig.autoProgress ? 'checked' : '')
+        .replace('{{targetAccuracyIdx}}', String(TARGET_ACCURACY_STEPS.indexOf(normalizeTargetAccuracy(userConfig.targetAccuracy))))
+        .replace('{{targetAccuracy}}', String(normalizeTargetAccuracy(userConfig.targetAccuracy)))
+        .replace('{{recentAccuracy}}', () => recentAccuracyHintText())
         .replace('{{#if weatherTheme}}checked{{/if}}', userConfig.weatherTheme !== false ? 'checked' : '')
         .replace('{{keybindingsConfig}}', () => kbHtml);
     }
@@ -2127,6 +2141,12 @@ async function openRemoteModalPopup(viewName, options = {}) {
         userConfig.autoProgress = e.target.checked;
       });
 
+      document.getElementById('target-accuracy-slider')?.addEventListener('input', (e) => {
+        userConfig.targetAccuracy = TARGET_ACCURACY_STEPS[parseInt(e.target.value, 10)] ?? DEFAULT_TARGET_ACCURACY;
+        const display = document.getElementById('target-accuracy-display');
+        if (display) display.textContent = String(userConfig.targetAccuracy);
+      });
+
       bindNotificationSetting(overlay);
 
       bindKeybindingSettingsEvents(overlay, userConfig);
@@ -2375,3 +2395,10 @@ registerGlobalKeybindings(userConfig, {
     }
   }
 });
+
+/** 설정 화면 「목표 정답률」 옆 안내: 최근 학습 정답률 */
+function recentAccuracyHintText() {
+  const { accuracy, count } = getRecentStudyAccuracy();
+  if (accuracy === null) return '학습 모드에서 10문제 넘게 풀면 최근 정답률에 맞춰 새 캐릭터 수를 조절합니다(늦게 맞힌 답은 틀린 것으로 셉니다).';
+  return `최근 ${count}문제 정답률 ${accuracy}%. 목표보다 많이 높으면 새 캐릭터를 더 넣고, 낮으면 복습만 합니다.`;
+}

@@ -112,6 +112,14 @@
   <span class="setting-label">자동 진도 (신규 캐릭터 자동 영입)</span>
   <input type="checkbox" id="auto-progress" class="setting-checkbox" {{#if autoProgress}}checked{{/if}}>
 </div>
+
+<div class="setting-row-block">
+  <label class="setting-label" for="target-accuracy-slider">목표 정답률 <small class="setting-hint-inline" id="target-accuracy-hint">{{recentAccuracy}}</small></label>
+  <div class="setting-slider-wrap">
+    <input type="range" id="target-accuracy-slider" min="0" max="5" step="1" value="{{targetAccuracyIdx}}">
+    <span class="setting-slider-val"><span id="target-accuracy-display">{{targetAccuracy}}</span>%</span>
+  </div>
+</div>
   </div>
 </details>
 

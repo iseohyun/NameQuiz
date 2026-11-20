@@ -55,6 +55,7 @@ export const userConfig = {
   learningTime: 60,
   MAX_POOL_SIZE: 10,
   autoProgress: true,
+  targetAccuracy: 85, // 목표 정답률(%): 최근 학습 정답률이 이보다 높으면 새 문제를 더 넣는다 (components/adaptive-progress.js)
   reviewReminder: true, // 복습 알림 예약 여부 (설정 화면에서 끄고 켠다)
   weatherTheme: true, // 처음 화면 계절 무대에 대략의 날씨(IP 위치)를 겹칠지 (components/season-weather.js)
   accentColor: 'pink', // 테마색(강조색): 'pink' | 'blue' | 'green' | 'purple' | 'orange' (common.css 의 html[data-accent])

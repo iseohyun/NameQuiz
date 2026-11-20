@@ -22,7 +22,7 @@
     window.QUIZAPP_GUI_VERSION = "v0.2.0";
     // 테마색(강조색)을 설정을 읽기 전부터 적용한다 (main.js 의 applyAccentColor 가 적어 둠)
     try { document.documentElement.dataset.accent = localStorage.getItem("NAMEQUIZ_ACCENT") || "pink"; } catch (e) { /* 무시 */ }
-    window.CACHE_BUST = "20261120v2";
+    window.CACHE_BUST = "20261121v1";
 
     const cssLink = document.createElement("link");
     cssLink.rel = "stylesheet";
@@ -32,6 +32,7 @@
     // ES 모듈 캐시 버스팅 (components/ 모듈 추가/변경 시 목록 동기화 필수)
     (function registerVersionedImportMap() {
       const componentModules = [
+        "adaptive-progress",
         "app-config",
         "auth-handler",
         "character-data",
