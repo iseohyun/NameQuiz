@@ -24,8 +24,12 @@ import {
   normalizeTargetAccuracy,
   planNewItems,
   recordStudyAnswer,
-  getRecentStudyAccuracy
+  getRecentStudyAccuracy,
+  getAccuracyState,
+  setAccuracyOwner,
+  mergeAccountAccuracy
 } from './components/adaptive-progress.js';
+import { getCurrentUserKey, loadAccountStudyAccuracy, saveAccountStudyAccuracy } from './components/db-handler.js';
 import { renderSisterAppsHtml, hydrateSisterApps } from './components/sister-apps.js';
 import { toLocalDateKey } from './components/date-utils.js';
 import { WEATHER_META, getApproxWeather } from './components/season-weather.js';
@@ -358,6 +362,9 @@ async function initApp() {
     } else {
       await initUser(null);
     }
+
+    // 목표 정답률 자동 진도: 정답률 기록을 이 사람 것으로 바꾸고 계정 기록과 맞춘다
+    await syncStudyAccuracy();
 
     applySavedConfig(await getUserConfig());
     applyAccentColor(userConfig.accentColor);
@@ -1052,6 +1059,8 @@ function showGuestRankingNotice() {
 }
 
 async function terminateQuizSession() {
+  // 이번 학습 판의 정답률 기록을 계정에 올린다(게스트는 기기에만, 기다리지 않음)
+  saveAccountStudyAccuracy(getAccuracyState());
   stopAllSessionTimers();
   isTimeUp = false;
   isPaused = false;
@@ -2401,4 +2410,14 @@ function recentAccuracyHintText() {
   const { accuracy, count } = getRecentStudyAccuracy();
   if (accuracy === null) return '학습 모드에서 10문제 넘게 풀면 최근 정답률에 맞춰 새 캐릭터 수를 조절합니다(늦게 맞힌 답은 틀린 것으로 셉니다).';
   return `최근 ${count}문제 정답률 ${accuracy}%. 목표보다 많이 높으면 새 캐릭터를 더 넣고, 낮으면 복습만 합니다.`;
+}
+
+/**
+ * 정답률 기록(목표 정답률 자동 진도)을 지금 사람 것으로 바꾸고, 로그인했으면 계정 기록과 맞춘다.
+ * 더 최근 쪽을 쓰고, 이 기기 기록이 더 새로우면 계정에 올린다.
+ */
+async function syncStudyAccuracy() {
+  setAccuracyOwner(getCurrentUserKey());
+  const remote = await loadAccountStudyAccuracy();
+  if (mergeAccountAccuracy(remote) === 'push') await saveAccountStudyAccuracy(getAccuracyState());
 }
